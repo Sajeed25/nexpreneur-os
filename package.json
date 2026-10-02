@@ -6,11 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.3",
+    "jose": "^6.2.12",
     "lucide-react": "^1.49.0",
+    "mysql2": "^3.24.5",
     "next": "^15.5.27",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -23,6 +28,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "^15.5.27",
     "tailwindcss": "^4",

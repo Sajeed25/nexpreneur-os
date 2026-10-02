@@ -1,15 +1,12 @@
 import { cookies } from "next/headers";
-import { isRole, type Role } from "./rbac";
+import { COOKIE, readSession, type Session } from "./auth";
+import { hasDb } from "./db";
 
-export type Session = { name: string; email: string; role: Role };
+export type { Session };
 
-/** Reads the session cookie. Swap for Supabase `getUser()` + profile lookup in production. */
 export async function getSession(): Promise<Session | null> {
-  const raw = (await cookies()).get("nx_session")?.value;
-  if (!raw) return null;
-  try {
-    const s = JSON.parse(decodeURIComponent(raw));
-    if (typeof s.name === "string" && typeof s.email === "string" && isRole(s.role)) return s;
-  } catch {}
-  return null;
+  const s = await readSession((await cookies()).get(COOKIE)?.value);
+  // A demo-mode cookie must stop working once a real database is connected.
+  if (s?.demo && hasDb()) return null;
+  return s;
 }

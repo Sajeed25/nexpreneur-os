@@ -14,4 +14,13 @@ The Intelligent Operating System for Modern Coworking Spaces. Next.js 16 · Type
 
 ## Status
 Done: auth screens (demo), design system, app shell, dashboard, members, resources, locations, schema (`db/schema.sql`, PostgreSQL draft; MySQL port pending).
-Next: MySQL + Drizzle, Auth.js, bookings.
+Auth: email+password with bcrypt and signed JWT cookies, MySQL via Drizzle. Next: bookings.
+
+
+## Database (Hostinger MySQL)
+1. hPanel > Databases > create a MySQL database + user.
+2. phpMyAdmin > Import > db/mysql-schema.sql.
+3. Set DATABASE_URL (mysql://user:pass@HOST:3306/db) and AUTH_SECRET in Environment variables, then Redeploy.
+4. Open /register. The FIRST account becomes the Owner and creates the organization, 3 locations and 4 plans. Do this right after deploy.
+Without a valid DATABASE_URL the app runs in demo mode.
+
