@@ -1,11 +1,9 @@
-﻿"use server";
+"use server";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import bcrypt from "bcryptjs";
-import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { COOKIE, authConfigured, cookieOptions, signSession, throttled } from "@/lib/auth";
-import { db, hasDb, schema } from "@/lib/db";
+import { hasDb } from "@/lib/db/config";
 import { isRole, type Role } from "@/lib/rbac";
 
 export type FormState = { error?: string; ok?: string };
@@ -19,13 +17,17 @@ const HOME: Record<Role, string> = {
 const email = z.string().trim().toLowerCase().email("Enter a valid email").max(190);
 const password = z.string().min(8, "Password must be at least 8 characters").max(72);
 const CONFIG_ERR = "Server setup incomplete: AUTH_SECRET must be a random string of 16+ characters. Set it in the host's environment variables and redeploy.";
-const BAD_LOGIN ="Incorrect email or password";
-// Compared when the user doesn't exist so response timing doesn't reveal which emails have accounts.
-const DUMMY = bcrypt.hashSync("not-a-real-password", 10);
+const BAD_LOGIN = "Incorrect email or password";
 
 async function clientKey() {
   const h = await headers();
   return (h.get("x-forwarded-for") ?? "local").split(",")[0].trim();
+}
+
+/** Short, non-sensitive tag (error name/code only) so a failure can be diagnosed from the screen. */
+function tag(e: unknown) {
+  const o = e as { code?: string; cause?: { code?: string }; name?: string };
+  return o?.code ?? o?.cause?.code ?? o?.name ?? "unknown";
 }
 
 async function start(s: { uid: string; org: string; name: string; email: string; role: Role; demo?: boolean }): Promise<never> {
@@ -46,24 +48,19 @@ export async function signIn(_: FormState, fd: FormData): Promise<FormState> {
 
   const p = base.safeParse(Object.fromEntries(fd));
   if (!p.success) return { error: p.error.issues[0].message };
+  if (!authConfigured()) return { error: CONFIG_ERR };
   if (throttled(`login:${await clientKey()}`) || throttled(`login:${p.data.email}`)) {
     return { error: "Too many attempts. Try again in a few minutes." };
   }
-  if (!authConfigured()) return { error: CONFIG_ERR };
-  let u: typeof schema.users.$inferSelect | undefined;
+  let user;
   try {
-    const d = db();
-    [u] = await d.select().from(schema.users)
-      .where(and(eq(schema.users.email, p.data.email), isNull(schema.users.deletedAt))).limit(1);
-    const ok = await bcrypt.compare(p.data.password, u?.passwordHash ?? DUMMY);
-    if (!u || !ok) return { error: BAD_LOGIN };
-    await d.update(schema.users).set({ lastLoginAt: sql`CURRENT_TIMESTAMP` }).where(eq(schema.users.id, u.id));
-    await d.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.login", entity: "user", entityId: u.id });
+    user = await (await import("@/lib/auth-service")).verifyLogin(p.data.email, p.data.password);
   } catch (e) {
     console.error("signIn failed", e);
-    return { error: "Couldn't reach the database. Please try again." };
+    return { error: `Couldn't sign in right now (code: ${tag(e)}). Please try again.` };
   }
-  return start({ uid: u.id, org: u.organizationId, name: u.name, email: u.email, role: u.role });
+  if (!user) return { error: BAD_LOGIN };
+  return start(user);
 }
 
 export async function signOut() {
@@ -71,7 +68,6 @@ export async function signOut() {
   redirect("/login");
 }
 
-/** The very first account becomes the owner and creates the organization; later sign-ups join it as members. */
 export async function register(_: FormState, fd: FormData): Promise<FormState> {
   const p = z.object({ name: z.string().trim().min(2, "Enter your name").max(160), email, password }).safeParse(Object.fromEntries(fd));
   if (!p.success) return { error: p.error.issues[0].message };
@@ -79,35 +75,13 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
   if (!authConfigured()) return { error: CONFIG_ERR };
   if (throttled(`reg:${await clientKey()}`, 5)) return { error: "Too many attempts. Try again in a few minutes." };
 
-  const hash = await bcrypt.hash(p.data.password, 11);
   let created: { uid: string; org: string; role: Role };
   try {
-    created = await db().transaction(async (tx) => {
-      const [existing] = await tx.select().from(schema.organizations).limit(1);
-      let orgId = existing?.id;
-      let role: Role = "member";
-      if (!orgId) {
-        orgId = crypto.randomUUID();
-        role = "owner";
-        await tx.insert(schema.organizations).values({ id: orgId, name: "Nexpreneur", slug: "nexpreneur" });
-        await tx.insert(schema.locations).values(
-          ["Hyderabad", "Warangal", "Nalgonda"].map((c) => ({ organizationId: orgId!, name: `Nexpreneur ${c}`, city: c })),
-        );
-        await tx.insert(schema.membershipPlans).values([
-          { name: "Flexi", pricePaise: 399900 }, { name: "Fixed Desk", pricePaise: 499900 },
-          { name: "Private Office", pricePaise: 1999900 }, { name: "Virtual Office", pricePaise: 99900 },
-        ].map((x) => ({ ...x, organizationId: orgId! })));
-      }
-      const uid = crypto.randomUUID();
-      await tx.insert(schema.users).values({ id: uid, organizationId: orgId, name: p.data.name, email: p.data.email, passwordHash: hash, role });
-      await tx.insert(schema.auditLogs).values({ organizationId: orgId, actorId: uid, action: "auth.register", entity: "user", entityId: uid });
-      return { uid, org: orgId, role };
-    });
+    created = await (await import("@/lib/auth-service")).createAccount(p.data.name, p.data.email, p.data.password);
   } catch (e) {
-    const code = typeof e === "object" && e ? ((e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code) : undefined;
-    if (code === "ER_DUP_ENTRY") return { error: "An account with this email already exists." };
+    if (tag(e) === "ER_DUP_ENTRY") return { error: "An account with this email already exists." };
     console.error("register failed", e);
-    return { error: "Couldn't create the account. Please try again." };
+    return { error: `Couldn't create the account (code: ${tag(e)}). Please try again.` };
   }
   return start({ ...created, name: p.data.name, email: p.data.email });
 }
@@ -120,4 +94,3 @@ export async function forgotPassword(_: FormState, fd: FormData): Promise<FormSt
 export async function resetPassword(): Promise<FormState> {
   return { error: SOON };
 }
-
