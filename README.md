@@ -26,3 +26,5 @@ Without a valid DATABASE_URL the app runs in demo mode.
 
 
 Phase 3 DB step: import db/mysql-0002-bookings.sql in phpMyAdmin (after mysql-schema.sql). Then Bookings > Floor map > Add demo resources (owner only).
+
+Phase 4 DB step: import db/mysql-0003-billing.sql. Razorpay webhook: https://<domain>/api/razorpay/webhook, event payment.captured, secret = RAZORPAY_WEBHOOK_SECRET.

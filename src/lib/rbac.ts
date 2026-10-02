@@ -28,7 +28,7 @@ export const ACCESS: Record<Role, Section[]> = {
   finance: ["dashboard", "payments", "invoices", "analytics", "memberships", "notifications"],
   community_manager: ["dashboard", "events", "community", "members", "notifications"],
   staff: ["dashboard", "bookings", "calendar", "resources", "visitors", "notifications"],
-  member: ["dashboard", "bookings", "memberships", "payments", "events", "community", "visitors", "ai", "notifications"],
+  member: ["dashboard", "bookings", "memberships", "payments", "invoices", "events", "community", "visitors", "ai", "notifications"],
 };
 
 export const can = (role: Role, s: Section) => ACCESS[role].includes(s);

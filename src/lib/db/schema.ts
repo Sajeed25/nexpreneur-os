@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, datetime, index, int, json, mysqlEnum, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { bigint, date, datetime, index, int, json, mysqlEnum, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 import { ROLES } from "@/lib/rbac";
 
 const id = () => varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID());
@@ -82,6 +82,61 @@ export const bookings = mysqlTable("bookings", {
   index("bk_org_loc_time").on(t.organizationId, t.locationId, t.startsAt),
   index("bk_user").on(t.userId),
 ]);
+
+export const memberships = mysqlTable("memberships", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+  planId: varchar("plan_id", { length: 36 }).notNull().references(() => membershipPlans.id),
+  startDate: date("start_date", { mode: "string" }).notNull(),
+  renewalDate: date("renewal_date", { mode: "string" }).notNull(),
+  status: mysqlEnum("status", ["active", "paused", "cancelled", "expired"]).notNull().default("active"),
+  createdAt: created(),
+}, (t) => [index("ms_org_renewal").on(t.organizationId, t.renewalDate), index("ms_user").on(t.userId)]);
+
+export const invoices = mysqlTable("invoices", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+  number: varchar("number", { length: 30 }).notNull(),
+  issueDate: date("issue_date", { mode: "string" }).notNull(),
+  dueDate: date("due_date", { mode: "string" }).notNull(),
+  subtotalPaise: bigint("subtotal_paise", { mode: "number" }).notNull(),
+  cgstPaise: bigint("cgst_paise", { mode: "number" }).notNull().default(0),
+  sgstPaise: bigint("sgst_paise", { mode: "number" }).notNull().default(0),
+  igstPaise: bigint("igst_paise", { mode: "number" }).notNull().default(0),
+  totalPaise: bigint("total_paise", { mode: "number" }).notNull(),
+  paidPaise: bigint("paid_paise", { mode: "number" }).notNull().default(0),
+  status: mysqlEnum("status", ["unpaid", "partial", "paid", "void"]).notNull().default("unpaid"),
+  placeOfSupply: varchar("place_of_supply", { length: 60 }).notNull().default("Telangana"),
+  buyerGstin: varchar("buyer_gstin", { length: 20 }),
+  createdAt: created(),
+}, (t) => [uniqueIndex("inv_org_number").on(t.organizationId, t.number), index("inv_user").on(t.userId), index("inv_org_due").on(t.organizationId, t.dueDate)]);
+
+export const invoiceItems = mysqlTable("invoice_items", {
+  id: id(),
+  invoiceId: varchar("invoice_id", { length: 36 }).notNull().references(() => invoices.id),
+  description: varchar("description", { length: 255 }).notNull(),
+  hsnSac: varchar("hsn_sac", { length: 12 }).notNull().default("997212"),
+  qty: int("qty").notNull().default(1),
+  unitPaise: bigint("unit_paise", { mode: "number" }).notNull(),
+  taxPct: int("tax_pct").notNull().default(18),
+}, (t) => [index("ii_invoice").on(t.invoiceId)]);
+
+export const payments = mysqlTable("payments", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
+  invoiceId: varchar("invoice_id", { length: 36 }).notNull().references(() => invoices.id),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+  amountPaise: bigint("amount_paise", { mode: "number" }).notNull(),
+  method: mysqlEnum("method", ["cash", "upi", "bank", "card", "razorpay"]).notNull(),
+  status: mysqlEnum("status", ["captured", "failed", "refunded"]).notNull().default("captured"),
+  razorpayOrderId: varchar("razorpay_order_id", { length: 40 }),
+  razorpayPaymentId: varchar("razorpay_payment_id", { length: 40 }),
+  note: varchar("note", { length: 255 }),
+  recordedBy: varchar("recorded_by", { length: 36 }),
+  createdAt: created(),
+}, (t) => [uniqueIndex("pay_rzp").on(t.razorpayPaymentId), index("pay_org_time").on(t.organizationId, t.createdAt), index("pay_invoice").on(t.invoiceId)]);
 
 export const auditLogs =mysqlTable("audit_logs", {
   id: id(),
