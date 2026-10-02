@@ -1,6 +1,6 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { AuthForm } from "../auth-form";
-import { hasDb } from "@/lib/db";
+import { hasDb } from "@/lib/db/config";
 
 export const dynamic = "force-dynamic"; // DATABASE_URL is read at request time, not baked in at build
 

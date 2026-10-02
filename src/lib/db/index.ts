@@ -1,9 +1,9 @@
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
+import { hasDb } from "./config";
 import * as schema from "./schema";
 
-/** True once DATABASE_URL points at a real MySQL server (not the deploy placeholder). */
-export const hasDb = () => /^mysql:\/\//.test(process.env.DATABASE_URL ?? "");
+export { hasDb };
 
 const g = globalThis as unknown as { __db?: MySql2Database<typeof schema> };
 

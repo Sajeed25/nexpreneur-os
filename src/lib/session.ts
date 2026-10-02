@@ -1,6 +1,6 @@
-import { cookies } from "next/headers";
+﻿import { cookies } from "next/headers";
 import { COOKIE, readSession, type Session } from "./auth";
-import { hasDb } from "./db";
+import { hasDb } from "./db/config";
 
 export type { Session };
 
