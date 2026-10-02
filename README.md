@@ -24,3 +24,5 @@ Auth: email+password with bcrypt and signed JWT cookies, MySQL via Drizzle. Next
 4. Open /register. The FIRST account becomes the Owner and creates the organization, 3 locations and 4 plans. Do this right after deploy.
 Without a valid DATABASE_URL the app runs in demo mode.
 
+
+Phase 3 DB step: import db/mysql-0002-bookings.sql in phpMyAdmin (after mysql-schema.sql). Then Bookings > Floor map > Add demo resources (owner only).

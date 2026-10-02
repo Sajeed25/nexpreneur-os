@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, index, int, json, mysqlEnum, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { bigint, datetime, index, int, json, mysqlEnum, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 import { ROLES } from "@/lib/rbac";
 
 const id = () => varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID());
@@ -64,7 +64,26 @@ export const resources = mysqlTable("resources", {
   deletedAt: timestamp("deleted_at"),
 }, (t) => [index("res_org_loc").on(t.organizationId, t.locationId)]);
 
-export const auditLogs = mysqlTable("audit_logs", {
+export const bookings = mysqlTable("bookings", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
+  locationId: varchar("location_id", { length: 36 }).notNull().references(() => locations.id),
+  resourceId: varchar("resource_id", { length: 36 }).notNull().references(() => resources.id),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+  startsAt: datetime("starts_at").notNull(), // stored as UTC
+  endsAt: datetime("ends_at").notNull(),
+  status: mysqlEnum("status", ["confirmed", "pending", "cancelled", "completed", "no_show"]).notNull().default("confirmed"),
+  subtotalPaise: bigint("subtotal_paise", { mode: "number" }).notNull(),
+  taxPaise: bigint("tax_paise", { mode: "number" }).notNull(),
+  totalPaise: bigint("total_paise", { mode: "number" }).notNull(),
+  createdAt: created(),
+}, (t) => [
+  index("bk_res_time").on(t.resourceId, t.startsAt, t.endsAt),
+  index("bk_org_loc_time").on(t.organizationId, t.locationId, t.startsAt),
+  index("bk_user").on(t.userId),
+]);
+
+export const auditLogs =mysqlTable("audit_logs", {
   id: id(),
   organizationId: varchar("organization_id", { length: 36 }).notNull(),
   actorId: varchar("actor_id", { length: 36 }),
