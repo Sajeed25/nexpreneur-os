@@ -6,6 +6,10 @@ export type Session = { uid: string; org: string; name: string; email: string; r
 export const COOKIE = "nx_session";
 const MAX_AGE = 60 * 60 * 8;
 
+/** False when AUTH_SECRET is missing or still a placeholder (production only). */
+export const authConfigured = () =>
+  process.env.NODE_ENV !== "production" || (process.env.AUTH_SECRET ?? "").length >= 16;
+
 function key() {
   const s = process.env.AUTH_SECRET;
   if (!s || s.length < 16) {

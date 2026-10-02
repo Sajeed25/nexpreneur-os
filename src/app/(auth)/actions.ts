@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import { COOKIE, cookieOptions, signSession, throttled } from "@/lib/auth";
+import { COOKIE, authConfigured, cookieOptions, signSession, throttled } from "@/lib/auth";
 import { db, hasDb, schema } from "@/lib/db";
 import { isRole, type Role } from "@/lib/rbac";
 
@@ -18,7 +18,8 @@ const HOME: Record<Role, string> = {
 
 const email = z.string().trim().toLowerCase().email("Enter a valid email").max(190);
 const password = z.string().min(8, "Password must be at least 8 characters").max(72);
-const BAD_LOGIN = "Incorrect email or password";
+const CONFIG_ERR = "Server setup incomplete: AUTH_SECRET must be a random string of 16+ characters. Set it in the host's environment variables and redeploy.";
+const BAD_LOGIN ="Incorrect email or password";
 // Compared when the user doesn't exist so response timing doesn't reveal which emails have accounts.
 const DUMMY = bcrypt.hashSync("not-a-real-password", 10);
 
@@ -48,14 +49,20 @@ export async function signIn(_: FormState, fd: FormData): Promise<FormState> {
   if (throttled(`login:${await clientKey()}`) || throttled(`login:${p.data.email}`)) {
     return { error: "Too many attempts. Try again in a few minutes." };
   }
-  const d = db();
-  const [u] = await d.select().from(schema.users)
-    .where(and(eq(schema.users.email, p.data.email), isNull(schema.users.deletedAt))).limit(1);
-  const ok = await bcrypt.compare(p.data.password, u?.passwordHash ?? DUMMY);
-  if (!u || !ok) return { error: BAD_LOGIN };
-
-  await d.update(schema.users).set({ lastLoginAt: sql`CURRENT_TIMESTAMP` }).where(eq(schema.users.id, u.id));
-  await d.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.login", entity: "user", entityId: u.id });
+  if (!authConfigured()) return { error: CONFIG_ERR };
+  let u: typeof schema.users.$inferSelect | undefined;
+  try {
+    const d = db();
+    [u] = await d.select().from(schema.users)
+      .where(and(eq(schema.users.email, p.data.email), isNull(schema.users.deletedAt))).limit(1);
+    const ok = await bcrypt.compare(p.data.password, u?.passwordHash ?? DUMMY);
+    if (!u || !ok) return { error: BAD_LOGIN };
+    await d.update(schema.users).set({ lastLoginAt: sql`CURRENT_TIMESTAMP` }).where(eq(schema.users.id, u.id));
+    await d.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.login", entity: "user", entityId: u.id });
+  } catch (e) {
+    console.error("signIn failed", e);
+    return { error: "Couldn't reach the database. Please try again." };
+  }
   return start({ uid: u.id, org: u.organizationId, name: u.name, email: u.email, role: u.role });
 }
 
@@ -69,6 +76,7 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
   const p = z.object({ name: z.string().trim().min(2, "Enter your name").max(160), email, password }).safeParse(Object.fromEntries(fd));
   if (!p.success) return { error: p.error.issues[0].message };
   if (!hasDb()) return { error: "The database isn't connected yet, so accounts can't be created." };
+  if (!authConfigured()) return { error: CONFIG_ERR };
   if (throttled(`reg:${await clientKey()}`, 5)) return { error: "Too many attempts. Try again in a few minutes." };
 
   const hash = await bcrypt.hash(p.data.password, 11);
