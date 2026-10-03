@@ -56,3 +56,25 @@ describe("analytics buckets", () => {
     expect(b.every((x) => x.end > x.start)).toBe(true);
   });
 });
+
+import { isAllLocations, matchLocations } from "@/lib/locations";
+
+describe("location keys", () => {
+  const rows = [
+    { id: "11111111-1111-4111-8111-111111111111", name: "Nexpreneur Hyderabad", city: "Hyderabad" },
+    { id: "22222222-2222-4222-8222-222222222222", name: "Nexpreneur Warangal", city: "Warangal" },
+  ];
+  it("treats all / empty as every location", () => {
+    expect(isAllLocations("all")).toBe(true);
+    expect(isAllLocations(undefined)).toBe(true);
+    expect(matchLocations(rows, "all")).toHaveLength(2);
+  });
+  it("matches a location by id, and only that one", () => {
+    expect(matchLocations(rows, rows[1].id)).toEqual([rows[1].id]);
+  });
+  it("still understands the old demo keys", () => expect(matchLocations(rows, "hyd")).toEqual([rows[0].id]));
+  it("matches nothing for an unknown key instead of leaking everything", () => {
+    expect(matchLocations(rows, "33333333-3333-4333-8333-333333333333")).toEqual([]);
+    expect(matchLocations(rows, "nonsense")).toEqual([]);
+  });
+});

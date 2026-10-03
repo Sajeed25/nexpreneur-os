@@ -5,8 +5,8 @@ import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { useLocation } from "@/components/shell/app-shell";
 import { assignMembership, createPlan, listMemberOptions, listMemberships, listPlans, type MemberOpt, type MembershipDTO, type PlanDTO } from "../invoices/actions";
-import { createCoupon, listCoupons, listLocationOptions, setCouponActive, setMembershipStatus, type CouponDTO } from "../invoices/extras";
-import { CITY, rupees, todayIST } from "@/lib/booking";
+import { createCoupon, listCoupons, listLocationOptions, listPlansAdmin, setCouponActive, setMembershipStatus, setPlanArchived, updatePlan, type CouponDTO, type PlanAdminDTO } from "../invoices/extras";
+import { rupees, todayIST } from "@/lib/booking";
 
 const field = "mt-1.5 h-11 w-full rounded-xl border bg-surface px-3 text-[15px] outline-none focus:border-accent";
 const CYCLE: Record<string, string> = { monthly: "month", quarterly: "quarter", yearly: "year" };
@@ -19,6 +19,8 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
   const [members, setMembers] = React.useState<MemberOpt[]>([]);
   const [places, setPlaces] = React.useState<{ id: string; city: string }[]>([]);
   const [coupons, setCoupons] = React.useState<CouponDTO[]>([]);
+  const [adminPlans, setAdminPlans] = React.useState<PlanAdminDTO[] | null>(null);
+  const [editPlan, setEditPlan] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<{ text: string; invoiceId?: string } | null>(null);
   const [tick, setTick] = React.useState(0);
@@ -27,7 +29,7 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
 
   React.useEffect(() => {
     let live = true;
-    Promise.all([listPlans(), listMemberships(), listMemberOptions(), listLocationOptions(), listCoupons()]).then(([p, m, o, l, c]) => {
+    Promise.all([listPlans(), listMemberships(), listMemberOptions(), listLocationOptions(), listCoupons(), canCreatePlan ? listPlansAdmin() : Promise.resolve(null)]).then(([p, m, o, l, c, ap]) => {
       if (!live) return;
       if (!p.ok) { setError(p.error); return; }
       setError(null); setPlans(p.data);
@@ -35,9 +37,10 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
       if (o.ok) setMembers(o.data);
       if (l.ok) setPlaces(l.data);
       if (c.ok) setCoupons(c.data);
+      if (ap?.ok) setAdminPlans(ap.data);
     }).catch(() => live && setError("Couldn't load memberships."));
     return () => { live = false; };
-  }, [tick]);
+  }, [tick, canCreatePlan]);
 
   const done = (r: { ok: boolean; error?: string }, close = true) => {
     setBusy(false);
@@ -87,7 +90,7 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
     ) }] : []),
   ];
   const search = React.useCallback((m: MembershipDTO) => `${m.who} ${m.plan} ${m.status}`, []);
-  const defaultLoc = places.find((p) => p.city === CITY[loc])?.id ?? places[0]?.id ?? "";
+  const defaultLoc = places.find((p) => p.id === loc)?.id ?? places[0]?.id ?? "";
 
   return (
     <>
@@ -154,13 +157,39 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
         </Card>
       )}
 
+      {adminPlans && <p className="mb-3 text-sm text-muted">Changing a price applies to new invoices and renewals from now on. Invoices already issued don&apos;t change.</p>}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {plans.map((p) => (
-          <Card key={p.id}>
-            <h2 className="font-semibold">{p.name}</h2>
-            <p className="mt-2 text-2xl font-semibold tracking-tight">{rupees(p.pricePaise)}<span className="text-sm font-normal text-muted"> /{CYCLE[p.billingCycle]}</span></p>
-            <p className="text-xs text-muted">+ 18% GST</p>
-            {p.benefits.length > 0 && <ul className="mt-3 space-y-1 text-sm text-muted">{p.benefits.map((b) => <li key={b}>• {b}</li>)}</ul>}
+        {(adminPlans ?? plans.map((p) => ({ ...p, archived: false, activeMembers: 0 }))).map((p) => (
+          <Card key={p.id} className={p.archived ? "opacity-60" : undefined}>
+            {editPlan === p.id && adminPlans ? (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                setBusy(true);
+                if (done(await updatePlan(p.id, { name: String(f.get("name")), price: Number(f.get("price")), cycle: String(f.get("cycle")) as "monthly", benefits: String(f.get("benefits") ?? "").split("\n").map((x) => x.trim()).filter(Boolean) }), false)) setEditPlan(null);
+              }} className="space-y-3">
+                <input name="name" defaultValue={p.name} required minLength={2} aria-label="Plan name" className={field + " mt-0"} />
+                <div className="grid grid-cols-2 gap-2">
+                  <input name="price" type="number" min="0" step="1" defaultValue={p.pricePaise / 100} required aria-label="Price in rupees" className={field + " mt-0"} />
+                  <select name="cycle" defaultValue={p.billingCycle} aria-label="Billing cycle" className={field + " mt-0"}><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select>
+                </div>
+                <textarea name="benefits" defaultValue={p.benefits.join("\n")} rows={3} aria-label="Benefits, one per line" className={field + " mt-0 h-auto py-2"} />
+                <div className="flex gap-2"><Button type="submit" size="sm" disabled={busy}>Save</Button><Button type="button" size="sm" variant="secondary" onClick={() => setEditPlan(null)}>Cancel</Button></div>
+              </form>
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-2"><h2 className="font-semibold">{p.name}</h2>{p.archived && <Badge tone="grey">Archived</Badge>}</div>
+                <p className="mt-2 text-2xl font-semibold tracking-tight">{rupees(p.pricePaise)}<span className="text-sm font-normal text-muted"> /{CYCLE[p.billingCycle]}</span></p>
+                <p className="text-xs text-muted">+ 18% GST{adminPlans ? ` · ${p.activeMembers} active` : ""}</p>
+                {p.benefits.length > 0 && <ul className="mt-3 space-y-1 text-sm text-muted">{p.benefits.map((b) => <li key={b}>• {b}</li>)}</ul>}
+                {adminPlans && (
+                  <div className="mt-4 flex gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => setEditPlan(p.id)}>Edit price & details</Button>
+                    <Button size="sm" variant="ghost" onClick={async () => done(await setPlanArchived(p.id, !p.archived), false)}>{p.archived ? "Restore" : "Archive"}</Button>
+                  </div>
+                )}
+              </>
+            )}
           </Card>
         ))}
       </div>

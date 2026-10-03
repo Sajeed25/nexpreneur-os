@@ -9,7 +9,7 @@ import { createInvoice, listInvoices, listMemberOptions, type InvoiceRow, type M
 import { listLocationOptions } from "./extras";
 import { listCompanyOptions } from "../companies/actions";
 import { INV_LABEL, INV_TONE, displayStatus, gst, toPaise } from "@/lib/billing";
-import { CITY, rupees, todayIST } from "@/lib/booking";
+import { rupees, todayIST } from "@/lib/booking";
 
 const field = "mt-1.5 h-11 w-full rounded-xl border bg-surface px-3 text-[15px] outline-none focus:border-accent";
 type L = { description: string; qty: number; price: number; taxPct: 0 | 5 | 12 | 18 | 28 };
@@ -52,8 +52,7 @@ export function InvoicesApp({ canCreate }: { canCreate: boolean }) {
 
   // Default the invoice's location to the one picked in the top bar.
   React.useEffect(() => {
-    const city = CITY[loc];
-    setLocationId((cur) => cur || places.find((p) => p.city === city)?.id || places[0]?.id || "");
+    setLocationId((cur) => cur || places.find((p) => p.id === loc)?.id || places[0]?.id || "");
   }, [loc, places]);
 
   const totals = gst(lines.map((l) => ({ description: l.description, qty: l.qty, unitPaise: toPaise(l.price), taxPct: l.taxPct })), interstate);

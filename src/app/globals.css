@@ -2,27 +2,39 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Nexpreneur brand: navy #042341, orange #F15A24, green #8AC73E (from the logo).
+   --primary = filled buttons/tabs (navy in light mode; orange in dark mode so it stays visible)
+   --accent  = orange used for text, links and focus (darkened in light mode to pass contrast)
+   --brand   = the pure logo orange, for charts, badges and decoration */
 :root {
-  --bg: #fbfbfa;
+  --bg: #f6f8fb;
   --surface: #ffffff;
-  --surface-2: #f4f4f2;
-  --border: #e8e8e4;
-  --fg: #1c1c1e;
-  --muted: #6b6b70;
-  --accent: #5b4df5;
+  --surface-2: #edf1f6;
+  --border: #e0e6ee;
+  --fg: #0b1b30;
+  --muted: #586a80;
+  --primary: #042341;
+  --primary-fg: #ffffff;
+  --accent: #c24510;
   --accent-fg: #ffffff;
-  --accent-soft: #efedff;
+  --accent-soft: #fdece3;
+  --brand: #f15a24;
+  --green: #8ac73e;
 }
 .dark {
-  --bg: #0e0e10;
-  --surface: #17171a;
-  --surface-2: #202024;
-  --border: #2b2b30;
-  --fg: #f2f2f3;
-  --muted: #9a9aa2;
-  --accent: #8b80ff;
-  --accent-fg: #0e0e10;
-  --accent-soft: #25224a;
+  --bg: #061221;
+  --surface: #0c1c30;
+  --surface-2: #132740;
+  --border: #20395a;
+  --fg: #eef3f9;
+  --muted: #9db0c6;
+  --primary: #f15a24;
+  --primary-fg: #061221;
+  --accent: #ff8a5b;
+  --accent-fg: #061221;
+  --accent-soft: #2b1d19;
+  --brand: #ff6a33;
+  --green: #9bd852;
 }
 
 @theme inline {
@@ -32,14 +44,19 @@
   --color-border: var(--border);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --color-brand: var(--brand);
+  --color-green: var(--green);
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
 }
 
 body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); }
 * { border-color: var(--border); }
+h1, h2, h3 { letter-spacing: -0.01em; }
 @media print {
   aside, header, nav, .no-print { display: none !important; }
   body { background: #fff; color: #000; }
@@ -47,4 +64,4 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); }
   div[class*="md:pl-"] { padding-left: 0 !important; }
   .shadow-soft { box-shadow: none; }
 }
-.shadow-soft { box-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 4px 16px rgb(0 0 0 / .04); }
+.shadow-soft { box-shadow: 0 1px 2px rgb(4 35 65 / .05), 0 6px 20px rgb(4 35 65 / .05); }

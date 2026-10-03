@@ -20,7 +20,8 @@ export function ServicesApp({ manage }: { manage: boolean }) {
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [tick, setTick] = React.useState(0);
-  const [showForm, setShowForm] = React.useState(false);
+  const [form, setForm] = React.useState<"new" | ServiceDTO | null>(null);
+  const editing = form && form !== "new" ? form : null;
   const [qty, setQty] = React.useState<Record<string, number>>({});
   const [coupon, setCoupon] = React.useState<Record<string, string>>({});
 
@@ -43,8 +44,8 @@ export function ServicesApp({ manage }: { manage: boolean }) {
   };
   const create = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const f = new FormData(form);
+    const formEl = e.currentTarget;
+    const f = new FormData(formEl);
     setBusy("new");
     let imageId: string | undefined;
     const photo = f.get("photo");
@@ -56,9 +57,9 @@ export function ServicesApp({ manage }: { manage: boolean }) {
       if (!u.ok) { setBusy(null); setError(u.error); return; }
       imageId = u.id;
     }
-    const r = await saveService(null, { name: String(f.get("name")), description: String(f.get("description")), price: Number(f.get("price")), taxPct: Number(f.get("taxPct")) as 18, available: f.get("available") === "on", imageId });
+    const r = await saveService(editing?.id ?? null, { name: String(f.get("name")), description: String(f.get("description")), price: Number(f.get("price")), taxPct: Number(f.get("taxPct")) as 18, available: f.get("available") === "on", imageId });
     setBusy(null);
-    if (!r.ok) setError(r.error); else { setError(null); form.reset(); setShowForm(false); setTick((t) => t + 1); }
+    if (!r.ok) setError(r.error); else { setError(null); formEl.reset(); setForm(null); setTick((t) => t + 1); }
   };
   const toggle = async (s: ServiceDTO) => {
     const r = await setServiceAvailable(s.id, !s.available);
@@ -68,20 +69,20 @@ export function ServicesApp({ manage }: { manage: boolean }) {
   return (
     <>
       <PageHeader title="Services" sub={manage ? "What members can order, billed on a GST invoice." : "Printing, parking, coffee and more."}
-        actions={manage && <Button onClick={() => setShowForm(!showForm)}>Add service</Button>} />
+        actions={manage && <Button onClick={() => setForm(form === "new" ? null : "new")}>Add service</Button>} />
       {error && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
       {info && <p role="status" className="mb-4 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">{info.text} {info.invoiceId && <Link href={`/invoices/${info.invoiceId}`} className="font-medium underline">View invoice</Link>}</p>}
 
-      {showForm && (
+      {form && (
         <Card className="mb-6">
-          <form onSubmit={create} className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium sm:col-span-2">Name<input name="name" required minLength={2} maxLength={160} className={field} placeholder="Colour printing (per page)" /></label>
-            <label className="text-sm font-medium sm:col-span-2">Description<textarea name="description" rows={2} maxLength={1000} className={field + " h-auto py-2"} /></label>
-            <label className="text-sm font-medium">Price (₹, before GST)<input name="price" type="number" min="0" step="0.01" required className={field} /></label>
-            <label className="text-sm font-medium">GST rate<select name="taxPct" defaultValue="18" className={field}>{[0, 5, 12, 18, 28].map((t) => <option key={t} value={t}>{t}%</option>)}</select></label>
-            <label className="text-sm font-medium">Image (optional)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" className="mt-1.5 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-accent" /></label>
-            <label className="flex items-center gap-2 pt-7 text-sm"><input type="checkbox" name="available" defaultChecked />Available to order</label>
-            <Button type="submit" disabled={busy === "new"} className="sm:col-span-2">{busy === "new" ? "Saving…" : "Add service"}</Button>
+          <form key={editing?.id ?? "new"} onSubmit={create} className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium sm:col-span-2">Name<input name="name" defaultValue={editing?.name} required minLength={2} maxLength={160} className={field} placeholder="Colour printing (per page)" /></label>
+            <label className="text-sm font-medium sm:col-span-2">Description<textarea name="description" defaultValue={editing?.description} rows={2} maxLength={1000} className={field + " h-auto py-2"} /></label>
+            <label className="text-sm font-medium">Price (₹, before GST){editing && <span className="font-normal text-muted"> (applies to new orders)</span>}<input name="price" type="number" min="0" step="0.01" required defaultValue={editing ? editing.pricePaise / 100 : undefined} className={field} /></label>
+            <label className="text-sm font-medium">GST rate<select name="taxPct" defaultValue={String(editing?.taxPct ?? 18)} className={field}>{[0, 5, 12, 18, 28].map((t) => <option key={t} value={t}>{t}%</option>)}</select></label>
+            <label className="text-sm font-medium">Image {editing ? "(leave empty to keep it)" : "(optional)"}<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" className="mt-1.5 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-accent" /></label>
+            <label className="flex items-center gap-2 pt-7 text-sm"><input type="checkbox" name="available" defaultChecked={editing ? editing.available : true} />Available to order</label>
+            <div className="flex gap-2 sm:col-span-2"><Button type="submit" disabled={busy === "new"}>{busy === "new" ? "Saving…" : editing ? "Save changes" : "Add service"}</Button><Button type="button" variant="secondary" onClick={() => setForm(null)}>Cancel</Button></div>
           </form>
         </Card>
       )}
@@ -103,7 +104,7 @@ export function ServicesApp({ manage }: { manage: boolean }) {
                   <Button size="sm" disabled={busy === s.id} onClick={() => order(s)}>{busy === s.id ? "Ordering…" : "Order"}</Button>
                 </div>
               )}
-              {manage && <Button size="sm" variant="ghost" onClick={() => toggle(s)}>{s.available ? "Hide" : "Make available"}</Button>}
+              {manage && <div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => { setForm(s); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Edit</Button><Button size="sm" variant="ghost" onClick={() => toggle(s)}>{s.available ? "Hide" : "Make available"}</Button></div>}
             </Card>
           ))}
         </div>

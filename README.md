@@ -3,6 +3,16 @@
 The Intelligent Operating System for Modern Coworking Spaces.
 Next.js 15 · TypeScript · Tailwind 4 · Drizzle ORM · MySQL/MariaDB · Recharts. Runs on Hostinger Node.js hosting.
 
+## Branding
+Colours from the logo: navy `#042341`, orange `#F15A24`, green `#8AC73E`. Font: Outfit (geometric rounded sans, close to the wordmark). Tokens live in `src/app/globals.css`
+(`--primary` filled buttons, `--accent` orange text/links, `--brand` pure logo orange for charts). Logo files: `public/brand/logo.png`, `public/brand/mark.png`, favicon `src/app/icon.png`.
+
+## Managing your data (owner / manager screens)
+- **Members:** add, edit, deactivate, send a password link or set a temporary password, start / pause / cancel a plan, view bookings, invoices and activity.
+- **Memberships:** edit plan price, cycle and benefits, archive plans, coupons. Price changes apply to new invoices and renewals only.
+- **Resources:** add one or many desks/rooms, edit hourly/daily prices and status, archive. **Locations:** add, rename, archive; they appear in the top selector straight away.
+- **Services / Events:** add and edit (price, details, image). **Settings:** team and roles, audit log.
+
 ## Modules
 Auth · Dashboard · Bookings (list / calendar / floor map) · Members · Memberships · GST invoices · Payments (Razorpay) ·
 Visitors (QR, emailed) · CRM · Events (with images) · Community · Companies · Services marketplace · Coupons · Refunds · Automatic renewals and payment reminders ·

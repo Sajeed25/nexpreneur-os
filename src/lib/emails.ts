@@ -58,3 +58,11 @@ export function visitorEmail(o: { visitor: string; host: string; org: string; da
     html: wrap(`You're invited to ${o.org}`, `<p>Hi ${esc(o.visitor)}, <b>${esc(o.host)}</b> has invited you.</p><p><b>${esc(o.date)}</b> at <b>${esc(o.time)}</b>${o.purpose ? ` · ${esc(o.purpose)}` : ""}</p><p>Show this QR code at reception:</p><p><img src="cid:visitor-qr" alt="QR code" width="200" height="200"></p><p style="color:#666;font-size:12px">Code: ${esc(o.code)}</p>`),
   };
 }
+
+export function welcomeEmail(name: string, org: string, link: string) {
+  return {
+    subject: `Welcome to ${org}: set your password`,
+    text: `Hi ${name},\n\nYour ${org} account is ready. Choose your password here (the link works once and lasts 7 days):\n${link}\n\nThen sign in to book spaces, see invoices and join events.\n`,
+    html: wrap(`Welcome to ${org}`, `<p>Hi ${esc(name)}, your account is ready.</p><p>Choose your password to get started. The link works once and lasts 7 days.</p>${button(link, "Set my password")}<p style="color:#666">Then sign in to book spaces, see invoices and join events.</p>`),
+  };
+}

@@ -35,7 +35,7 @@ function RangeTabs({ range, setRange }: { range: string; setRange: (r: string) =
     <div role="tablist" aria-label="Date range" className="flex gap-1 overflow-x-auto rounded-xl border bg-surface p-1">
       {RANGES.map(([id, label]) => (
         <button key={id} role="tab" aria-selected={id === range} onClick={() => setRange(id)}
-          className={cn("h-8 shrink-0 rounded-lg px-3 text-sm", id === range ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>{label}</button>
+          className={cn("h-8 shrink-0 rounded-lg px-3 text-sm", id === range ? "bg-primary text-primary-fg" : "text-muted hover:text-fg")}>{label}</button>
       ))}
     </div>
   );
@@ -47,7 +47,7 @@ function greeting() {
 }
 
 export function Dashboard({ name }: { name: string }) {
-  const { loc } = useLocation();
+  const { loc, locations } = useLocation();
   const [range, setRange] = React.useState("30d");
   const [real, setReal] = React.useState<DashboardDTO | null>(null);
   const [demo, setDemo] = React.useState(false);
@@ -78,7 +78,7 @@ export function Dashboard({ name }: { name: string }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`${greeting()}, ${name}`} sub={`Nexpreneur · ${LOCATIONS.find((l) => l.id === loc)?.name ?? "All Locations"}`} actions={<RangeTabs range={range} setRange={setRange} />} />
+      <PageHeader title={`${greeting()}, ${name}`} sub={`Nexpreneur · ${locations.find((l) => l.id === loc)?.name ?? "All Locations"}`} actions={<RangeTabs range={range} setRange={setRange} />} />
       {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
       {loading && !real && <p className="text-sm text-muted">Loading…</p>}
       {real && a && (

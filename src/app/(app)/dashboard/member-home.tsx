@@ -55,7 +55,7 @@ export function MemberHome({ name }: { name: string }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="bg-accent text-accent-fg">
+        <Card className="bg-primary text-primary-fg">
           <p className="text-sm opacity-80">Your membership</p>
           {!d ? <p className="mt-1 opacity-80">Loading…</p> : d.membership ? (
             <>

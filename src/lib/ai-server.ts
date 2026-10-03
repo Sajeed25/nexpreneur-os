@@ -42,13 +42,25 @@ export type ChatMsg =
   | { role: "tool"; tool_call_id: string; content: string };
 
 export async function callOpenAI(messages: ChatMsg[], tools: unknown[]) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-4o-mini", messages, tools, tool_choice: "auto", temperature: 0.2, max_tokens: 600 }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) { console.error("openai error", res.status); throw new Error(`OPENAI_${res.status}`); }
+  let res: Response;
+  try {
+    res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      // max_completion_tokens (not max_tokens) and no temperature: accepted by both classic and newer models.
+      body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-4o-mini", messages, tools, tool_choice: "auto", max_completion_tokens: 800 }),
+      signal: AbortSignal.timeout(45_000),
+    });
+  } catch (e) {
+    console.error("openai network error", e);
+    throw new Error("OPENAI_NETWORK");
+  }
+  if (!res.ok) {
+    let detail = "";
+    try { detail = ((await res.json()) as { error?: { message?: string } }).error?.message?.slice(0, 200) ?? ""; } catch {}
+    console.error("openai error", res.status, detail); // the key itself is never logged
+    throw new Error(`OPENAI_${res.status}`);
+  }
   const j = (await res.json()) as { choices?: { message: Extract<ChatMsg, { role: "assistant" }> }[] };
   const m = j.choices?.[0]?.message;
   if (!m) throw new Error("OPENAI_EMPTY");

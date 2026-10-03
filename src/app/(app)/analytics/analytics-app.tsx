@@ -57,7 +57,7 @@ export function AnalyticsApp() {
           <div className="flex flex-wrap items-center gap-2">
             <div role="tablist" aria-label="Date range" className="flex gap-1 rounded-xl border bg-surface p-1">
               {RANGES.map(([id, label]) => (
-                <button key={id} role="tab" aria-selected={range === id} onClick={() => setRange(id)} className={cn("h-8 rounded-lg px-3 text-sm", range === id ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>{label}</button>
+                <button key={id} role="tab" aria-selected={range === id} onClick={() => setRange(id)} className={cn("h-8 rounded-lg px-3 text-sm", range === id ? "bg-primary text-primary-fg" : "text-muted hover:text-fg")}>{label}</button>
               ))}
             </div>
             <Button variant="secondary" size="sm" onClick={download} disabled={exporting || !a}><Download size={16} />{exporting ? "Preparing…" : "Export CSV"}</Button>

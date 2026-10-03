@@ -1,5 +1,5 @@
 "use server";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, hasDb, schema } from "@/lib/db";
 import { getSession } from "@/lib/session";
@@ -134,10 +134,50 @@ export async function setMembershipStatus(id: string, status: "active" | "paused
 }
 
 // ---------- Small helpers for forms ----------
-export async function listLocationOptions(): Promise<Result<{ id: string; city: string }[]>> {
+export async function listLocationOptions(): Promise<Result<{ id: string; city: string; name: string }[]>> {
   const s = await getSession();
   if (!s || s.demo || !hasDb()) return fail(NO);
-  const rows = await db().select({ id: schema.locations.id, city: schema.locations.city }).from(schema.locations)
+  const rows = await db().select({ id: schema.locations.id, city: schema.locations.city, name: schema.locations.name }).from(schema.locations)
     .where(and(eq(schema.locations.organizationId, s.org), isNull(schema.locations.deletedAt))).orderBy(schema.locations.createdAt);
-  return { ok: true, data: rows.map((r) => ({ id: r.id, city: r.city ?? "" })) };
+  return { ok: true, data: rows.map((r) => ({ id: r.id, city: r.city ?? "", name: r.name })) };
+}
+
+// ---------- Plan pricing management ----------
+export type PlanAdminDTO = { id: string; name: string; pricePaise: number; billingCycle: string; benefits: string[]; archived: boolean; activeMembers: number };
+
+export async function listPlansAdmin(): Promise<Result<PlanAdminDTO[]>> {
+  const s = await ctx("memberships");
+  if (!s) return fail(NO);
+  if (!isManager(s.role)) return fail(FORBIDDEN);
+  const plans = await db().select().from(schema.membershipPlans).where(eq(schema.membershipPlans.organizationId, s.org)).orderBy(schema.membershipPlans.pricePaise);
+  const counts = await db().select({ planId: memberships.planId, n: sql<number>`count(*)` }).from(memberships).where(and(eq(memberships.organizationId, s.org), eq(memberships.status, "active"))).groupBy(memberships.planId);
+  return { ok: true, data: plans.map((p) => ({ id: p.id, name: p.name, pricePaise: p.pricePaise, billingCycle: p.billingCycle, benefits: p.benefits ?? [], archived: !!p.deletedAt, activeMembers: Number(counts.find((c) => c.planId === p.id)?.n ?? 0) })) };
+}
+
+const planEdit = z.object({
+  name: z.string().trim().min(2).max(120), price: z.number().min(0).max(10_000_000),
+  cycle: z.enum(["monthly", "quarterly", "yearly"]), benefits: z.array(z.string().trim().min(1).max(120)).max(12),
+});
+/** New price applies to future invoices and renewals. Invoices already issued keep the price they were issued at. */
+export async function updatePlan(id: string, input: z.infer<typeof planEdit>): Promise<Result<null>> {
+  const s = await ctx("memberships");
+  if (!s || !z.string().uuid().safeParse(id).success) return fail(s ? "Invalid request" : NO);
+  if (!isManager(s.role)) return fail(FORBIDDEN);
+  const p = planEdit.safeParse(input);
+  if (!p.success) return fail("Check the plan details");
+  const r = await db().update(schema.membershipPlans).set({ name: p.data.name, pricePaise: toPaise(p.data.price), billingCycle: p.data.cycle, benefits: p.data.benefits })
+    .where(and(eq(schema.membershipPlans.id, id), eq(schema.membershipPlans.organizationId, s.org)));
+  if (!(r[0] as { affectedRows?: number }).affectedRows) return fail("Plan not found");
+  await db().insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: `plan.update:${toPaise(p.data.price)}`, entity: "plan", entityId: id });
+  return { ok: true, data: null };
+}
+
+/** Archived plans can't be assigned to new members. People already on one keep it and keep renewing. */
+export async function setPlanArchived(id: string, archived: boolean): Promise<Result<null>> {
+  const s = await ctx("memberships");
+  if (!s || !z.string().uuid().safeParse(id).success) return fail(s ? "Invalid request" : NO);
+  if (!isManager(s.role)) return fail(FORBIDDEN);
+  await db().update(schema.membershipPlans).set({ deletedAt: archived ? new Date() : null }).where(and(eq(schema.membershipPlans.id, id), eq(schema.membershipPlans.organizationId, s.org)));
+  await db().insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: archived ? "plan.archive" : "plan.restore", entity: "plan", entityId: id });
+  return { ok: true, data: null };
 }

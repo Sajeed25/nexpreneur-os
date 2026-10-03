@@ -1,7 +1,8 @@
 import "server-only";
 import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { CITY, CLOSE_HOUR, OPEN_HOUR, todayIST } from "@/lib/booking";
+import { CLOSE_HOUR, OPEN_HOUR, todayIST } from "@/lib/booking";
+import { isAllLocations, matchLocations } from "@/lib/locations";
 import { CYCLE_MONTHS } from "@/lib/billing";
 
 const { payments, bookings, resources, locations, users, memberships, membershipPlans, leads, invoices } = schema;
@@ -133,8 +134,7 @@ export async function computeAnalytics(org: string, range: RangeKey, opts: { fin
 }
 /** Maps the top-bar location key ("hyd", "wgl", "nlg", "all") to a location id, or null for the whole organisation. */
 export async function locationIdFor(org: string, key: string | undefined): Promise<string | null> {
-  const city = CITY[key ?? "all"];
-  if (!city) return null;
-  const [l] = await db().select({ id: locations.id }).from(locations).where(and(eq(locations.organizationId, org), eq(locations.city, city), isNull(locations.deletedAt)));
-  return l?.id ?? null;
+  if (isAllLocations(key)) return null;
+  const rows = await db().select({ id: locations.id, name: locations.name, city: locations.city }).from(locations).where(and(eq(locations.organizationId, org), isNull(locations.deletedAt)));
+  return matchLocations(rows, key)[0] ?? "none"; // an unknown key matches nothing rather than silently showing everything
 }

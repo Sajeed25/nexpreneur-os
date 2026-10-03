@@ -27,7 +27,7 @@ export async function runRenewals(today = todayIST()) {
         const [m] = await tx.select().from(memberships).where(eq(memberships.id, id)).for("update");
         if (!m || m.status !== "active" || m.renewalDate > cutoff) return null;
         const [plan] = await tx.select().from(membershipPlans).where(eq(membershipPlans.id, m.planId));
-        if (!plan || plan.deletedAt) return null;
+        if (!plan) return null; // an archived plan still renews for the people already on it
         const start = m.renewalDate;
         const end = addMonths(start, CYCLE_MONTHS[plan.billingCycle] ?? 1);
         const invId = await issueInvoice(tx, { org: m.organizationId, uid: null }, m.userId,

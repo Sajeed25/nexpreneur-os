@@ -126,3 +126,28 @@ export async function listAttendees(id: string): Promise<Result<{ name: string; 
     .where(and(eq(eventRegistrations.eventId, id), eq(events.organizationId, s.org), eq(eventRegistrations.status, "registered"))).orderBy(users.name);
   return { ok: true, data: rows };
 }
+
+/** Edits an event. Capacity can't drop below the people already registered. A price change only affects future registrations. */
+export async function updateEvent(id: string, input: z.infer<typeof eventIn>): Promise<Result<null>> {
+  const s = await ctx();
+  if (!s || !z.string().uuid().safeParse(id).success) return { ok: false, error: s ? "Invalid request" : NO };
+  if (!MANAGE.includes(s.role)) return { ok: false, error: "You don't have permission to edit events." };
+  const p = eventIn.safeParse(input);
+  if (!p.success) return { ok: false, error: p.error.issues[0].message };
+  const v = p.data;
+  const startsAt = istToDate(v.date, v.start), endsAt = istToDate(v.date, v.end);
+  if (isNaN(startsAt.getTime()) || endsAt <= startsAt) return { ok: false, error: "End time must be after start time" };
+  const [cnt] = await db().select({ n: sql<number>`count(*)` }).from(eventRegistrations).where(and(eq(eventRegistrations.eventId, id), eq(eventRegistrations.status, "registered")));
+  if (v.capacity < Number(cnt.n)) return { ok: false, error: `${cnt.n} people are already registered, so capacity can't go below that.` };
+  if (v.imageId) {
+    const [img] = await db().select({ id: schema.images.id }).from(schema.images).where(and(eq(schema.images.id, v.imageId), eq(schema.images.organizationId, s.org)));
+    if (!img) return { ok: false, error: "That image wasn't found. Upload it again." };
+  }
+  const r = await db().update(events).set({
+    title: v.title, description: v.description || null, startsAt, endsAt, venue: v.venue || null, capacity: v.capacity, pricePaise: toPaise(v.price),
+    organizer: v.organizer || null, published: v.publish, ...(v.imageId ? { imageId: v.imageId } : {}),
+  }).where(and(eq(events.id, id), eq(events.organizationId, s.org)));
+  if (!(r[0] as { affectedRows?: number }).affectedRows) return { ok: false, error: "Event not found" };
+  await db().insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: "event.update", entity: "event", entityId: id });
+  return { ok: true, data: null };
+}

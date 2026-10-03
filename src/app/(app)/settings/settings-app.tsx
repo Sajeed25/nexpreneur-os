@@ -55,7 +55,7 @@ export function SettingsApp({ canGrantSuper }: { canGrantSuper: boolean }) {
       <PageHeader title="Settings" sub="Your team and who can do what." actions={tab === "team" && <Button onClick={() => setShowAdd(!showAdd)}>Add team member</Button>} />
       <div role="tablist" className="mb-4 inline-flex gap-1 rounded-xl border bg-surface p-1">
         {(["team", "audit"] as const).map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("h-9 rounded-lg px-4 text-sm", tab === t ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>{t === "team" ? "Team & roles" : "Audit log"}</button>
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("h-9 rounded-lg px-4 text-sm", tab === t ? "bg-primary text-primary-fg" : "text-muted hover:text-fg")}>{t === "team" ? "Team & roles" : "Audit log"}</button>
         ))}
       </div>
       {error && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}

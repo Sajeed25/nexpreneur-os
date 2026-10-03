@@ -71,7 +71,7 @@ export function BookingsApp({ initialTab, canSeed }: { initialTab: Tab; canSeed:
       <div role="tablist" className="mb-4 inline-flex gap-1 rounded-xl border bg-surface p-1">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
-            className={cn("flex h-9 items-center gap-2 rounded-lg px-3 text-sm", tab === id ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>
+            className={cn("flex h-9 items-center gap-2 rounded-lg px-3 text-sm", tab === id ? "bg-primary text-primary-fg" : "text-muted hover:text-fg")}>
             <Icon size={16} />{label}
           </button>
         ))}
@@ -124,7 +124,7 @@ function CalendarView({ rows, cal, setCal, anchor, setAnchor, from }: {
         <span className="ml-2 font-medium">{fmtIST(dayStart(from).toISOString(), { month: "long", year: "numeric" })}</span>
         <div className="ml-auto flex gap-1">
           {(["day", "week", "month"] as Cal[]).map((c) => (
-            <button key={c} onClick={() => setCal(c)} className={cn("h-8 rounded-lg px-3 text-sm capitalize", cal === c ? "bg-accent text-accent-fg" : "text-muted hover:bg-surface-2")}>{c}</button>
+            <button key={c} onClick={() => setCal(c)} className={cn("h-8 rounded-lg px-3 text-sm capitalize", cal === c ? "bg-primary text-primary-fg" : "text-muted hover:bg-surface-2")}>{c}</button>
           ))}
         </div>
       </div>

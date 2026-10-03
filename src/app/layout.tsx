@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 
-const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+// Outfit: a geometric rounded sans that matches the Nexpreneur wordmark.
+const outfit = Outfit({ variable: "--font-outfit", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "Nexpreneur OS",
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={geist.variable} suppressHydrationWarning>
+    <html lang="en" className={outfit.variable} suppressHydrationWarning>
       <body className="antialiased">{children}</body>
     </html>
   );

@@ -5,7 +5,8 @@ import { db, hasDb, schema } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { isManager, toPaise } from "@/lib/billing";
-import { CITY, todayIST } from "@/lib/booking";
+import { todayIST } from "@/lib/booking";
+import { isAllLocations, matchLocations } from "@/lib/locations";
 import { CouponError, issueInvoice } from "@/lib/invoicing";
 import { notify } from "@/lib/notify";
 
@@ -61,7 +62,7 @@ export async function setServiceAvailable(id: string, available: boolean): Promi
   return { ok: true, data: null };
 }
 
-const orderIn = z.object({ serviceId: z.string().uuid(), qty: z.number().int().min(1).max(50), couponCode: z.string().trim().max(40).optional(), loc: z.string().max(8).optional() });
+const orderIn = z.object({ serviceId: z.string().uuid(), qty: z.number().int().min(1).max(50), couponCode: z.string().trim().max(40).optional(), loc: z.string().max(40).optional() });
 /** Orders a service: creates the order and its GST invoice together. The price always comes from the database. */
 export async function orderService(input: z.infer<typeof orderIn>): Promise<Result<{ invoiceId: string }>> {
   const s = await ctx();
@@ -72,8 +73,8 @@ export async function orderService(input: z.infer<typeof orderIn>): Promise<Resu
     const invoiceId = await db().transaction(async (tx) => {
       const [svc] = await tx.select().from(services).where(and(eq(services.id, p.data.serviceId), eq(services.organizationId, s.org), isNull(services.deletedAt)));
       if (!svc || !svc.available) throw new Error("UNAVAILABLE");
-      const city = CITY[p.data.loc ?? "all"];
-      const [loc] = city ? await tx.select({ id: locations.id }).from(locations).where(and(eq(locations.organizationId, s.org), eq(locations.city, city))) : [];
+      const locRows = await tx.select({ id: locations.id, name: locations.name, city: locations.city }).from(locations).where(and(eq(locations.organizationId, s.org), isNull(locations.deletedAt)));
+      const loc = isAllLocations(p.data.loc) ? undefined : { id: matchLocations(locRows, p.data.loc)[0] };
       const inv = await issueInvoice(tx, s, s.uid, [{ description: svc.name, qty: p.data.qty, unitPaise: svc.pricePaise, taxPct: svc.taxPct, hsnSac: "998599" }], todayIST(), false, null, 7, { couponCode: p.data.couponCode || null, locationId: loc?.id ?? null });
       await tx.insert(serviceOrders).values({ organizationId: s.org, userId: s.uid, serviceId: svc.id, qty: p.data.qty, invoiceId: inv });
       await notify(tx, { org: s.org, userId: s.uid, kind: "service", title: `Ordered: ${svc.name}${p.data.qty > 1 ? ` × ${p.data.qty}` : ""}`, link: `/invoices/${inv}` });

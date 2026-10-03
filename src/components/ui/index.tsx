@@ -13,7 +13,7 @@ export function Button({ variant = "primary", size = "md", className, ...p }: Bt
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition active:scale-[.98] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
         size === "sm" ? "h-9 px-3 text-sm" : "h-11 px-4 text-[15px]",
-        variant === "primary" && "bg-accent text-accent-fg hover:opacity-90",
+        variant === "primary" && "bg-primary text-primary-fg hover:opacity-90",
         variant === "secondary" && "border bg-surface hover:bg-surface-2",
         variant === "ghost" && "hover:bg-surface-2",
         className,

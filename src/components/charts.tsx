@@ -27,12 +27,12 @@ const common = (data: Point[], fmt?: (v: number) => string) => (
 );
 
 export const AreaSeries = ({ data, fmt }: { data: Point[]; fmt?: (v: number) => string }) => (
-  <AreaChart data={data}>{common(data, fmt)}<Area type="monotone" dataKey="value" stroke="var(--accent)" fill="var(--accent-soft)" strokeWidth={2} /></AreaChart>
+  <AreaChart data={data}>{common(data, fmt)}<Area type="monotone" dataKey="value" stroke="var(--brand)" fill="var(--accent-soft)" strokeWidth={2} /></AreaChart>
 );
 export const LineSeries = ({ data, fmt }: { data: Point[]; fmt?: (v: number) => string }) => (
-  <LineChart data={data}>{common(data, fmt)}<Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2} dot={false} /></LineChart>
+  <LineChart data={data}>{common(data, fmt)}<Line type="monotone" dataKey="value" stroke="var(--brand)" strokeWidth={2} dot={false} /></LineChart>
 );
 export const BarSeries = ({ data, fmt }: { data: Point[]; fmt?: (v: number) => string }) => (
-  <BarChart data={data}>{common(data, fmt)}<Bar dataKey="value" fill="var(--accent)" radius={[6, 6, 0, 0]} /></BarChart>
+  <BarChart data={data}>{common(data, fmt)}<Bar dataKey="value" fill="var(--brand)" radius={[6, 6, 0, 0]} /></BarChart>
 );
 export const compactInr = (v: number) => (v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${Math.round(v / 1000)}k` : `₹${v}`);

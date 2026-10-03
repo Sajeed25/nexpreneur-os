@@ -6,7 +6,10 @@ import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { SLOTS, fmtIST, rupees, todayIST } from "@/lib/booking";
 import { uploadImage } from "@/app/images/actions";
 import { resizeToJpeg } from "@/lib/client-image";
-import { cancelRegistration, createEvent, listAttendees, listEvents, registerForEvent, setPublished, type EventDTO } from "./actions";
+import { cancelRegistration, createEvent, listAttendees, listEvents, registerForEvent, setPublished, updateEvent, type EventDTO } from "./actions";
+
+const istDate = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+const istTime = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
 
 const field = "mt-1.5 h-11 w-full rounded-xl border bg-surface px-3 text-[15px] outline-none focus:border-accent";
 
@@ -17,7 +20,8 @@ export function EventsApp({ manage }: { manage: boolean }) {
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [tick, setTick] = React.useState(0);
-  const [showForm, setShowForm] = React.useState(false);
+  const [form, setForm] = React.useState<"new" | EventDTO | null>(null);
+  const editing = form && form !== "new" ? form : null;
   const [attendees, setAttendees] = React.useState<{ id: string; list: { name: string; email: string }[] } | null>(null);
 
   React.useEffect(() => {
@@ -32,8 +36,8 @@ export function EventsApp({ manage }: { manage: boolean }) {
 
   const create = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const f = new FormData(form);
+    const formEl = e.currentTarget;
+    const f = new FormData(formEl);
     const g = (k: string) => String(f.get(k) ?? "");
     setBusy("new");
     let imageId: string | undefined;
@@ -46,9 +50,10 @@ export function EventsApp({ manage }: { manage: boolean }) {
       if (!u.ok) { setBusy(null); setError(u.error); return; }
       imageId = u.id;
     }
-    const r = await createEvent({ imageId, title: g("title"), description: g("description"), date: g("date"), start: g("start"), end: g("end"), venue: g("venue"), capacity: Number(g("capacity")), price: Number(g("price") || 0), organizer: g("organizer"), publish: f.get("publish") === "on" });
+    const payload = { imageId, title: g("title"), description: g("description"), date: g("date"), start: g("start"), end: g("end"), venue: g("venue"), capacity: Number(g("capacity")), price: Number(g("price") || 0), organizer: g("organizer"), publish: f.get("publish") === "on" };
+    const r = editing ? await updateEvent(editing.id, payload) : await createEvent(payload);
     setBusy(null);
-    if (!r.ok) setError(r.error); else { setError(null); form.reset(); setShowForm(false); setTick((t) => t + 1); }
+    if (!r.ok) setError(r.error); else { setError(null); formEl.reset(); setForm(null); setTick((t) => t + 1); }
   };
   const register = async (id: string) => {
     setBusy(id); setInfo(null);
@@ -76,25 +81,25 @@ export function EventsApp({ manage }: { manage: boolean }) {
   return (
     <>
       <PageHeader title="Events" sub={manage ? "Create and manage community events." : "Workshops, meetups and more."}
-        actions={manage && <Button onClick={() => setShowForm(!showForm)}>Create event</Button>} />
+        actions={manage && <Button onClick={() => setForm(form === "new" ? null : "new")}>Create event</Button>} />
       {error && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
       {info && <p role="status" className="mb-4 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">{info.text} {info.invoiceId && <Link href={`/invoices/${info.invoiceId}`} className="font-medium underline">View invoice</Link>}</p>}
 
-      {showForm && (
+      {form && (
         <Card className="mb-6">
-          <form onSubmit={create} className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium sm:col-span-2">Title<input name="title" required minLength={3} maxLength={160} className={field} /></label>
-            <label className="text-sm font-medium sm:col-span-2">Description<textarea name="description" rows={3} maxLength={2000} className={field + " h-auto py-2"} /></label>
-            <label className="text-sm font-medium">Date<input name="date" type="date" min={todayIST()} defaultValue={todayIST()} required className={field} /></label>
-            <label className="text-sm font-medium">Venue<input name="venue" maxLength={160} className={field} placeholder="Event Space, Hyderabad" /></label>
-            <label className="text-sm font-medium">Starts<select name="start" defaultValue="18:00" className={field}>{SLOTS.slice(0, -1).map((s) => <option key={s}>{s}</option>)}</select></label>
-            <label className="text-sm font-medium">Ends<select name="end" defaultValue="20:00" className={field}>{SLOTS.slice(1).map((s) => <option key={s}>{s}</option>)}</select></label>
-            <label className="text-sm font-medium">Capacity<input name="capacity" type="number" min={1} defaultValue={50} required className={field} /></label>
-            <label className="text-sm font-medium">Ticket price (₹, before GST)<input name="price" type="number" min={0} defaultValue={0} className={field} /></label>
-            <label className="text-sm font-medium">Organizer<input name="organizer" maxLength={120} className={field} /></label>
-            <label className="flex items-center gap-2 pt-7 text-sm"><input type="checkbox" name="publish" defaultChecked />Publish now</label>
-            <label className="text-sm font-medium sm:col-span-2">Event image (optional)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" className="mt-1.5 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-accent" /></label>
-            <Button type="submit" disabled={busy === "new"} className="sm:col-span-2">{busy === "new" ? "Saving…" : "Create event"}</Button>
+          <form key={editing?.id ?? "new"} onSubmit={create} className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium sm:col-span-2">Title<input name="title" defaultValue={editing?.title} required minLength={3} maxLength={160} className={field} /></label>
+            <label className="text-sm font-medium sm:col-span-2">Description<textarea name="description" defaultValue={editing?.description} rows={3} maxLength={2000} className={field + " h-auto py-2"} /></label>
+            <label className="text-sm font-medium">Date<input name="date" type="date" min={editing ? undefined : todayIST()} defaultValue={editing ? istDate(editing.startsAt) : todayIST()} required className={field} /></label>
+            <label className="text-sm font-medium">Venue<input name="venue" defaultValue={editing?.venue} maxLength={160} className={field} placeholder="Event Space, Hyderabad" /></label>
+            <label className="text-sm font-medium">Starts<select name="start" defaultValue={editing ? istTime(editing.startsAt) : "18:00"} className={field}>{SLOTS.slice(0, -1).map((s) => <option key={s}>{s}</option>)}</select></label>
+            <label className="text-sm font-medium">Ends<select name="end" defaultValue={editing ? istTime(editing.endsAt) : "20:00"} className={field}>{SLOTS.slice(1).map((s) => <option key={s}>{s}</option>)}</select></label>
+            <label className="text-sm font-medium">Capacity{editing && editing.registered > 0 && <span className="font-normal text-muted"> ({editing.registered} registered)</span>}<input name="capacity" type="number" min={Math.max(1, editing?.registered ?? 1)} defaultValue={editing?.capacity ?? 50} required className={field} /></label>
+            <label className="text-sm font-medium">Ticket price (₹, before GST){editing && <span className="font-normal text-muted"> (applies to new sign-ups)</span>}<input name="price" type="number" min={0} step="0.01" defaultValue={editing ? editing.pricePaise / 100 : 0} className={field} /></label>
+            <label className="text-sm font-medium">Organizer<input name="organizer" defaultValue={editing?.organizer} maxLength={120} className={field} /></label>
+            <label className="flex items-center gap-2 pt-7 text-sm"><input type="checkbox" name="publish" defaultChecked={editing ? editing.published : true} />{editing ? "Published" : "Publish now"}</label>
+            <label className="text-sm font-medium sm:col-span-2">Event image {editing ? "(leave empty to keep the current one)" : "(optional)"}<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" className="mt-1.5 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-accent" /></label>
+            <div className="flex gap-2 sm:col-span-2"><Button type="submit" disabled={busy === "new"}>{busy === "new" ? "Saving…" : editing ? "Save changes" : "Create event"}</Button><Button type="button" variant="secondary" onClick={() => setForm(null)}>Cancel</Button></div>
           </form>
         </Card>
       )}
@@ -124,6 +129,7 @@ export function EventsApp({ manage }: { manage: boolean }) {
                     <Button size="sm" variant="ghost" disabled={busy === e.id} onClick={() => cancel(e.id)}>Cancel registration</Button>
                   </> : e.published && <Button size="sm" disabled={busy === e.id || left <= 0} onClick={() => register(e.id)}>{left <= 0 ? "Full" : busy === e.id ? "Registering…" : e.pricePaise > 0 ? "Register & get invoice" : "Register"}</Button>}
                   {manage && <>
+                    <Button size="sm" variant="secondary" onClick={() => { setForm(e); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Edit</Button>
                     <Button size="sm" variant="secondary" onClick={() => toggle(e)}>{e.published ? "Unpublish" : "Publish"}</Button>
                     <Button size="sm" variant="secondary" onClick={() => showAttendees(e.id)}>Attendees</Button>
                   </>}

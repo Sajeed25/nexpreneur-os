@@ -128,3 +128,30 @@ export async function findOrCreateGoogleUser(email: string, name: string): Promi
   const c = await createAccount(display, email, crypto.randomUUID() + crypto.randomUUID());
   return { uid: c.uid, org: c.org, name: display, email, role: c.role };
 }
+import { welcomeEmail } from "@/lib/emails";
+
+const WELCOME_TTL_MS = 7 * 24 * 3_600_000;
+
+/** Creates a one-time "set your password" link for an account, valid for 7 days. Reuses the password-reset page and token table. */
+export async function createSetupLink(userId: string): Promise<string> {
+  const base = appUrl();
+  if (!base) throw new Error("AUTH_URL_NOT_SET");
+  const { token, hash } = newResetToken();
+  await db().insert(schema.passwordResets).values({ userId, tokenHash: hash, expiresAt: new Date(Date.now() + WELCOME_TTL_MS) });
+  return `${base}/reset-password?token=${token}`;
+}
+
+/** Emails a new member their welcome + set-password link. Returns false (never throws) if it couldn't be sent. */
+export async function sendWelcome(userId: string): Promise<boolean> {
+  try {
+    const [u] = await db().select().from(schema.users).where(and(eq(schema.users.id, userId), isNull(schema.users.deletedAt)));
+    if (!u) return false;
+    const [o] = await db().select({ name: schema.organizations.name }).from(schema.organizations).where(eq(schema.organizations.id, u.organizationId));
+    const m = welcomeEmail(u.name, o?.name ?? "Nexpreneur", await createSetupLink(u.id));
+    await sendMail(u.email, m.subject, m.text, m.html);
+    return true;
+  } catch (e) {
+    console.error("welcome email failed", e);
+    return false;
+  }
+}

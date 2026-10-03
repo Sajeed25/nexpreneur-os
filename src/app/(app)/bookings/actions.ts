@@ -4,13 +4,14 @@ import { z } from "zod";
 import { db, hasDb, schema } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
-import { CITY, CLOSE_HOUR, OPEN_HOUR, fmtIST, istToDate, price, rupees, type Kind } from "@/lib/booking";
+import { CLOSE_HOUR, OPEN_HOUR, fmtIST, istToDate, price, rupees, type Kind } from "@/lib/booking";
 import { notify } from "@/lib/notify";
+import { matchLocations } from "@/lib/locations";
 
 const { resources, bookings, locations, users, auditLogs } = schema;
 
 export type ResourceDTO = {
-  id: string; name: string; kind: Kind; capacity: number; status: string; city: string;
+  id: string; name: string; kind: Kind; capacity: number; status: string; city: string; locationId: string;
   hourlyPricePaise: number | null; dailyPricePaise: number | null;
 };
 export type BookingDTO = {
@@ -27,23 +28,23 @@ async function ctx() {
 }
 const NO_ACCESS = "Connect the database and sign in with a real account to use bookings.";
 
-async function locationIds(org: string, city: string | null) {
-  const rows = await db().select({ id: locations.id, city: locations.city }).from(locations)
+async function locationIds(org: string, key: string | null) {
+  const rows = await db().select({ id: locations.id, name: locations.name, city: locations.city }).from(locations)
     .where(and(eq(locations.organizationId, org), isNull(locations.deletedAt)));
-  return { all: rows, picked: city ? rows.filter((r) => r.city === city).map((r) => r.id) : rows.map((r) => r.id) };
+  return { all: rows, picked: matchLocations(rows, key) };
 }
 
 export async function listResources(loc: string): Promise<Result<ResourceDTO[]>> {
   const s = await ctx();
   if (!s) return { ok: false, error: NO_ACCESS };
-  const { all, picked } = await locationIds(s.org, CITY[loc] ?? null);
+  const { all, picked } = await locationIds(s.org, loc);
   if (!picked.length) return { ok: true, data: [] };
   const rows = await db().select().from(resources)
     .where(and(eq(resources.organizationId, s.org), inArray(resources.locationId, picked), isNull(resources.deletedAt)))
     .orderBy(asc(resources.kind), asc(resources.name));
   return { ok: true, data: rows.map((r) => ({
-    id: r.id, name: r.name, kind: r.kind, capacity: r.capacity, status: r.status,
-    city: all.find((l) => l.id === r.locationId)?.city ?? "",
+    id: r.id, name: r.name, kind: r.kind, capacity: r.capacity, status: r.status, locationId: r.locationId,
+    city: all.find((l) => l.id === r.locationId)?.name ?? "",
     hourlyPricePaise: r.hourlyPricePaise, dailyPricePaise: r.dailyPricePaise,
   })) };
 }
@@ -54,7 +55,7 @@ export async function listBookings(input: z.infer<typeof range>): Promise<Result
   const s = await ctx();
   const p = range.safeParse(input);
   if (!s || !p.success) return { ok: false, error: s ? "Invalid date range" : NO_ACCESS };
-  const { all, picked } = await locationIds(s.org, CITY[p.data.loc] ?? null);
+  const { all, picked } = await locationIds(s.org, p.data.loc);
   if (!picked.length) return { ok: true, data: [] };
   const seesAll = s.role !== "member";
   const rows = await db().select({ b: bookings, r: resources, u: users }).from(bookings)
@@ -66,7 +67,7 @@ export async function listBookings(input: z.infer<typeof range>): Promise<Result
       seesAll ? undefined : eq(bookings.userId, s.uid),
     )).orderBy(asc(bookings.startsAt)).limit(500);
   return { ok: true, data: rows.map(({ b, r, u }) => ({
-    id: b.id, resourceId: r.id, resourceName: r.name, kind: r.kind, city: all.find((l) => l.id === b.locationId)?.city ?? "",
+    id: b.id, resourceId: r.id, resourceName: r.name, kind: r.kind, city: all.find((l) => l.id === b.locationId)?.name ?? "",
     who: u.name, startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), status: b.status, totalPaise: b.totalPaise,
   })) };
 }

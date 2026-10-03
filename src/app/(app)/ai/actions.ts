@@ -5,24 +5,24 @@ import { getSession } from "@/lib/session";
 import { can, ROLE_LABEL } from "@/lib/rbac";
 import { throttled } from "@/lib/auth";
 import { aiConfigured, callOpenAI, signProposal, verifyProposal, type ChatMsg } from "@/lib/ai-server";
-import { CITY, fmtIST, price, rupees, todayIST } from "@/lib/booking";
+import { fmtIST, price, rupees, todayIST } from "@/lib/booking";
 import { cancelBooking, checkAvailability, createBooking, listBookings, listResources } from "../bookings/actions";
 import { listInvoices, listMemberships, listPlans } from "../invoices/actions";
+import { listLocationOptions } from "../invoices/extras";
 import { listEvents } from "../events/actions";
 
 export type ProposalCard = { token: string; title: string; detail: string; confirmLabel: string };
 export type ChatResult = { ok: true; reply: string; proposals: ProposalCard[] } | { ok: false; error: string };
 export type ConfirmResult = { ok: true; message: string } | { ok: false; error: string };
 
-const LOCS = ["Hyderabad", "Warangal", "Nalgonda"] as const;
-const LOC_ID: Record<string, string> = { Hyderabad: "hyd", Warangal: "wgl", Nalgonda: "nlg" };
+type Loc = { id: string; name: string };
 const KIND_ENUM = ["hot_desk", "dedicated_desk", "meeting_room", "private_office", "phone_booth", "event_space"];
 const DATE = { type: "string", description: "Date as YYYY-MM-DD in India time" };
 const TIME = (d: string) => ({ type: "string", description: `${d}, 24-hour HH:mm in India time, on a 30-minute boundary` });
 
-const TOOLS = [
+const buildTools = (locNames: string[]) => [
   { type: "function", function: { name: "check_availability", description: "List spaces of one type with availability and price for a time window. Always use this before proposing a booking.",
-    parameters: { type: "object", properties: { location: { type: "string", enum: LOCS }, kind: { type: "string", enum: KIND_ENUM }, date: DATE, start: TIME("Start time"), end: TIME("End time") }, required: ["location", "kind", "date", "start", "end"] } } },
+    parameters: { type: "object", properties: { location: { type: "string", ...(locNames.length ? { enum: locNames } : {}), description: "Location name" }, kind: { type: "string", enum: KIND_ENUM }, date: DATE, start: TIME("Start time"), end: TIME("End time") }, required: ["location", "kind", "date", "start", "end"] } } },
   { type: "function", function: { name: "list_my_bookings", description: "List upcoming bookings visible to the user.", parameters: { type: "object", properties: {} } } },
   { type: "function", function: { name: "list_my_invoices", description: "List recent invoices with totals and payment status.", parameters: { type: "object", properties: {} } } },
   { type: "function", function: { name: "get_my_membership", description: "Get the user's membership plan and renewal date, and all plan prices.", parameters: { type: "object", properties: {} } } },
@@ -39,7 +39,7 @@ async function ctx() {
 }
 
 const args = {
-  avail: z.object({ location: z.enum(LOCS), kind: z.enum(KIND_ENUM as [string, ...string[]]), date: z.string(), start: z.string(), end: z.string() }),
+  avail: z.object({ location: z.string().max(120), kind: z.enum(KIND_ENUM as [string, ...string[]]), date: z.string(), start: z.string(), end: z.string() }),
   book: z.object({ resource_id: z.string().uuid(), date: z.string(), start: z.string(), end: z.string() }),
   cancel: z.object({ booking_id: z.string().uuid() }),
 };
@@ -50,14 +50,17 @@ const day = (iso: string) => fmtIST(iso, { weekday: "short", day: "numeric", mon
 type Ctx = NonNullable<Awaited<ReturnType<typeof ctx>>>;
 
 /** Runs one tool. Read-only tools return data; propose_* tools only create a signed proposal for the user to confirm. */
-async function runTool(name: string, raw: string, s: Ctx, proposals: ProposalCard[]): Promise<unknown> {
+async function runTool(name: string, raw: string, s: Ctx, proposals: ProposalCard[], locs: Loc[]): Promise<unknown> {
   let input: unknown;
   try { input = JSON.parse(raw || "{}"); } catch { return { error: "Invalid tool arguments" }; }
   switch (name) {
     case "check_availability": {
       const a = args.avail.safeParse(input);
       if (!a.success) return { error: "Invalid arguments" };
-      const r = await checkAvailability({ loc: LOC_ID[a.data.location], kind: a.data.kind, date: a.data.date, start: a.data.start, end: a.data.end });
+      const wanted = a.data.location.trim().toLowerCase();
+      const place = locs.find((l) => l.name.toLowerCase() === wanted) ?? locs.find((l) => l.name.toLowerCase().includes(wanted));
+      if (!place) return { error: `Unknown location. Choose one of: ${locs.map((l) => l.name).join(", ")}` };
+      const r = await checkAvailability({ loc: place.id, kind: a.data.kind, date: a.data.date, start: a.data.start, end: a.data.end });
       if (!r.ok) return { error: r.error };
       return r.data.map((x) => ({ resource_id: x.id, name: x.name, capacity: x.capacity, available: x.available, total_rupees_incl_gst: x.total / 100 }));
     }
@@ -88,7 +91,7 @@ async function runTool(name: string, raw: string, s: Ctx, proposals: ProposalCar
       const all = await listResources("all");
       const res = all.ok ? all.data.find((x) => x.id === a.data.resource_id) : undefined;
       if (!res) return { error: "Resource not found. Use an id from check_availability." };
-      const chk = await checkAvailability({ loc: LOC_ID[res.city] ?? "all", kind: res.kind, date: a.data.date, start: a.data.start, end: a.data.end });
+      const chk = await checkAvailability({ loc: res.locationId, kind: res.kind, date: a.data.date, start: a.data.start, end: a.data.end });
       if (!chk.ok) return { error: chk.error };
       const row = chk.data.find((x) => x.id === res.id);
       if (!row?.available) return { error: "That space is not available at that time." };
@@ -135,19 +138,34 @@ Rules:
 
   const convo: ChatMsg[] = [{ role: "system", content: system }, ...h.data.map((m) => ({ role: m.role, content: m.content }) as ChatMsg)];
   const proposals: ProposalCard[] = [];
+  const lr = await listLocationOptions();
+  const locs: Loc[] = lr.ok ? lr.data.map((l) => ({ id: l.id, name: l.name })) : [];
   try {
     for (let i = 0; i < 5; i++) {
-      const m = await callOpenAI(convo, TOOLS);
+      const m = await callOpenAI(convo, buildTools(locs.map((l) => l.name)));
       if (!m.tool_calls?.length) return { ok: true, reply: m.content?.trim() || "Sorry, I couldn't come up with an answer.", proposals };
       convo.push({ role: "assistant", content: m.content ?? null, tool_calls: m.tool_calls });
       for (const call of m.tool_calls) {
-        const out = await runTool(call.function.name, call.function.arguments, s, proposals);
+        const out = await runTool(call.function.name, call.function.arguments, s, proposals, locs);
         convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(out).slice(0, 6000) });
       }
     }
     return { ok: true, reply: "That took more steps than expected. Could you rephrase or be more specific?", proposals };
   } catch (e) {
     console.error("assistant failed", e);
+    const code = e instanceof Error ? e.message : "";
+    // Owners get the real reason so they can fix it; everyone else gets a calm generic message.
+    if (s.role === "owner" || s.role === "super_admin") {
+      const why: Record<string, string> = {
+        OPENAI_401: "OpenAI rejected the API key. Check OPENAI_API_KEY in the server settings.",
+        OPENAI_403: "OpenAI refused the request. The key may not have access to this model.",
+        OPENAI_404: "OpenAI doesn't know that model. Check OPENAI_MODEL (try gpt-4o-mini).",
+        OPENAI_429: "OpenAI says the account is out of credit or rate-limited. Check billing at platform.openai.com.",
+        OPENAI_400: "OpenAI rejected the request. If you set OPENAI_MODEL, try gpt-4o-mini.",
+        OPENAI_NETWORK: "The server couldn't reach OpenAI (network blocked or timed out).",
+      };
+      if (code.startsWith("OPENAI_")) return { ok: false, error: `${why[code] ?? "OpenAI returned an error."} (${code})` };
+    }
     return { ok: false, error: "The assistant is unavailable right now. Please try again in a moment." };
   }
 }

@@ -68,7 +68,7 @@ export function AssistantApp({ configured }: { configured: boolean }) {
         )}
         {msgs.map((m, i) => (
           <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-            <p className={cn("max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[15px]", m.role === "user" ? "bg-accent text-accent-fg" : m.error ? "bg-red-500/10 text-red-700 dark:text-red-400" : "bg-surface-2")}>{m.content}</p>
+            <p className={cn("max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[15px]", m.role === "user" ? "bg-primary text-primary-fg" : m.error ? "bg-red-500/10 text-red-700 dark:text-red-400" : "bg-surface-2")}>{m.content}</p>
           </div>
         ))}
         {cards.filter((c) => c.state !== "dismissed").map((c) => (

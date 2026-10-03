@@ -7,20 +7,24 @@ import { NAV } from "./nav";
 import { Avatar } from "@/components/ui";
 import { CommandPalette } from "./command-palette";
 import { NotificationBell } from "./notification-bell";
-import { LOCATIONS } from "@/lib/demo-data";
+import { LogoMark, Wordmark } from "@/components/brand";
 import { ACCESS, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/app/(auth)/actions";
 
-const LocationCtx = React.createContext<{ loc: string; setLoc: (l: string) => void }>({ loc: "hyd", setLoc: () => {} });
+export type LocOption = { id: string; name: string };
+const LocationCtx = React.createContext<{ loc: string; setLoc: (l: string) => void; locations: LocOption[] }>({ loc: "all", setLoc: () => {}, locations: [] });
 export const useLocation = () => React.useContext(LocationCtx);
 
-export function AppShell({ user, children }: { user: { name: string; role: Role }; children: React.ReactNode }) {
+export function AppShell({ user, locations: places, children }: { user: { name: string; role: Role }; locations: LocOption[]; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
   const [dark, setDark] = React.useState(false);
-  const [loc, setLoc] = React.useState("hyd");
+  const isOwner = user.role === "owner" || user.role === "super_admin";
+  // Owners can look at every location together; everyone else works in one location at a time.
+  const options = React.useMemo<LocOption[]>(() => (isOwner || places.length === 0 ? [{ id: "all", name: "All Locations" }, ...places] : places), [isOwner, places]);
+  const [loc, setLoc] = React.useState(options[0]?.id ?? "all");
   const [cmd, setCmd] = React.useState(false);
   const [menu, setMenu] = React.useState(false);
 
@@ -29,9 +33,9 @@ export function AppShell({ user, children }: { user: { name: string; role: Role 
       const t = localStorage.getItem("nx_theme");
       if (t === "dark") { setDark(true); document.documentElement.classList.add("dark"); }
       const l = localStorage.getItem("nx_loc");
-      if (l) setLoc(l);
+      if (l && options.some((o) => o.id === l)) setLoc(l);
     } catch {}
-  }, []);
+  }, [options]);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -51,16 +55,14 @@ export function AppShell({ user, children }: { user: { name: string; role: Role 
 
   const items = NAV.filter((n) => ACCESS[user.role].includes(n.section));
   const mobileItems = (user.role === "member" ? ["dashboard", "bookings", "memberships", "payments", "profile"].map((s) => items.find((n) => n.section === s)!).filter(Boolean) : items.filter((n) => n.section !== "profile")).slice(0, 5);
-  const isOwner = user.role === "owner" || user.role === "super_admin";
-  const locations = isOwner ? LOCATIONS : LOCATIONS.filter((l) => l.id !== "all");
 
   return (
-    <LocationCtx.Provider value={{ loc, setLoc: changeLoc }}>
+    <LocationCtx.Provider value={{ loc: options.some((o) => o.id === loc) ? loc : (options[0]?.id ?? "all"), setLoc: changeLoc, locations: options }}>
       <div className="min-h-dvh">
         <aside className={cn("fixed inset-y-0 left-0 z-30 hidden flex-col border-r bg-surface transition-[width] md:flex", collapsed ? "w-[72px]" : "w-64")}>
           <div className="flex h-16 items-center gap-2 px-4">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent font-bold text-accent-fg">N</span>
-            {!collapsed && <span className="font-semibold tracking-tight">Nexpreneur OS</span>}
+            <LogoMark size={36} />
+            {!collapsed && <span className="flex flex-col"><Wordmark className="text-[21px]" /><span className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-muted">OS</span></span>}
           </div>
           <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2" aria-label="Main">
             {items.map(({ section, label, icon: Icon, href }) => {
@@ -82,9 +84,9 @@ export function AppShell({ user, children }: { user: { name: string; role: Role 
         <div className={cn("transition-[padding]", collapsed ? "md:pl-[72px]" : "md:pl-64")}>
           <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b bg-bg/85 px-4 backdrop-blur sm:gap-3 sm:px-6">
             <div className="relative">
-              <select value={locations.some((l) => l.id === loc) ? loc : "hyd"} onChange={(e) => changeLoc(e.target.value)} aria-label="Location"
+              <select value={options.some((o) => o.id === loc) ? loc : (options[0]?.id ?? "all")} onChange={(e) => changeLoc(e.target.value)} aria-label="Location"
                 className="h-10 appearance-none rounded-xl border bg-surface pl-3 pr-8 text-sm font-medium outline-none">
-                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                {options.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
               <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-3.5 text-muted" />
             </div>
@@ -124,7 +126,7 @@ export function AppShell({ user, children }: { user: { name: string; role: Role 
           })}
         </nav>
         {ACCESS[user.role].includes("ai") && !pathname.startsWith("/ai") && (
-          <Link href="/ai" aria-label="Open AI assistant" className="fixed bottom-20 right-4 z-30 grid size-12 place-items-center rounded-full bg-accent text-accent-fg shadow-soft transition hover:scale-105 md:bottom-6 md:right-6"><Bot size={22} /></Link>
+          <Link href="/ai" aria-label="Open AI assistant" className="fixed bottom-20 right-4 z-30 grid size-12 place-items-center rounded-full bg-primary text-primary-fg shadow-soft transition hover:scale-105 md:bottom-6 md:right-6"><Bot size={22} /></Link>
         )}
         <CommandPalette open={cmd} onClose={() => setCmd(false)} items={items} go={(h) => { setCmd(false); router.push(h); }} />
       </div>

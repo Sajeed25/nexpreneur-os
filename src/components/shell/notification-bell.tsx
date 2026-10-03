@@ -21,7 +21,7 @@ export function NotificationBell() {
   return (
     <Link href="/notifications" aria-label={n ? `Notifications, ${n} unread` : "Notifications"} className="relative grid size-10 place-items-center rounded-xl hover:bg-surface-2">
       <Bell size={19} />
-      {n > 0 && <span className="absolute right-1.5 top-1.5 grid min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-4 text-accent-fg">{n > 9 ? "9+" : n}</span>}
+      {n > 0 && <span className="absolute right-1.5 top-1.5 grid min-w-4 place-items-center rounded-full bg-brand px-1 text-[10px] font-semibold leading-4 text-white">{n > 9 ? "9+" : n}</span>}
     </Link>
   );
 }
