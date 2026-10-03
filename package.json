@@ -40,9 +40,13 @@
     "eslint-config-next": "^15.5.27",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2",
+    "postcss": "^8.5.28"
   }
 }

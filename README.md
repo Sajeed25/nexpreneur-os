@@ -48,7 +48,7 @@ Never commit real values. `.env*` is git-ignored except `.env.example`.
 - AI assistant: read-only tools run freely; booking/cancel are only *proposed* and need a signed, expiring, user-bound confirmation. It can't pay or edit anything else.
 - Headers: CSP, HSTS, X-Frame-Options DENY, nosniff, strict Referrer-Policy, locked-down Permissions-Policy.
 - Rate limiting is **in memory per process** (login, register, AI). It resets on restart and isn't shared between instances; move it to the database or Redis if you ever run more than one instance.
-- Known accepted risk: `npm audit` reports PostCSS issues inside Next.js. PostCSS only runs at build time on our own CSS; the fix needs Next 16 (see note above).
+- Dependencies: `npm audit --omit=dev` reports 0 vulnerabilities. `package.json` overrides force PostCSS (otherwise pinned old inside Next 15) and esbuild to patched versions. One dev-only advisory remains (`braces` DoS via the ESLint config; no patched release exists and it never runs in production).
 - Registration is open: anyone with the URL can create a **member** account. Roles above member are only granted by an owner in Settings.
 
 ## Backups and operations
