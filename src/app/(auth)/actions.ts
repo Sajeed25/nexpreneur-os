@@ -86,11 +86,40 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
   return start({ ...created, name: p.data.name, email: p.data.email });
 }
 
-const SOON = "Password reset by email is coming soon. Ask an admin to reset your password for now.";
+const SENT = "If an account exists for that email, we've sent a reset link. It works once and expires in 1 hour.";
+
 export async function forgotPassword(_: FormState, fd: FormData): Promise<FormState> {
   const p = email.safeParse(fd.get("email"));
-  return { error: p.success ? SOON : p.error.issues[0].message };
+  if (!p.success) return { error: p.error.issues[0].message };
+  if (!hasDb()) return { error: "The database isn't connected yet." };
+  const { smtpConfigured, appUrl } = await import("@/lib/mailer");
+  // Configuration problems are reported plainly: they don't depend on whether the email has an account.
+  if (!smtpConfigured() || !appUrl()) return { error: "Password reset email isn't set up yet. Ask your admin to reset your password." };
+  if (throttled(`forgot:${await clientKey()}`, 5, 15 * 60_000) || throttled(`forgot:${p.data}`, 3, 15 * 60_000)) {
+    return { error: "Too many requests. Try again in a few minutes." };
+  }
+  try {
+    await (await import("@/lib/auth-service")).requestPasswordReset(p.data);
+  } catch (e) {
+    console.error("password reset request failed", e); // same reply either way: don't reveal whether the account exists
+  }
+  return { ok: SENT };
 }
-export async function resetPassword(): Promise<FormState> {
-  return { error: SOON };
+
+export async function resetPassword(_: FormState, fd: FormData): Promise<FormState> {
+  const p = z.object({
+    token: z.string().min(20).max(100), password, confirm: z.string(),
+  }).refine((v) => v.password === v.confirm, { message: "Passwords don't match", path: ["confirm"] }).safeParse(Object.fromEntries(fd));
+  if (!p.success) return { error: p.error.issues[0].message };
+  if (!hasDb()) return { error: "The database isn't connected yet." };
+  if (throttled(`reset:${await clientKey()}`, 10, 15 * 60_000)) return { error: "Too many attempts. Try again in a few minutes." };
+  let ok = false;
+  try {
+    ok = await (await import("@/lib/auth-service")).completePasswordReset(p.data.token, p.data.password);
+  } catch (e) {
+    console.error("password reset failed", e);
+    return { error: `Couldn't reset the password (code: ${tag(e)}). Please try again.` };
+  }
+  if (!ok) return { error: "This reset link is invalid or has expired. Request a new one." };
+  redirect("/login?reset=1");
 }

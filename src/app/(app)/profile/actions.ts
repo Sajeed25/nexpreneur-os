@@ -3,7 +3,9 @@ import bcrypt from "bcryptjs";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, hasDb, schema } from "@/lib/db";
+import { cookies } from "next/headers";
 import { getSession } from "@/lib/session";
+import { COOKIE, cookieOptions, signSession } from "@/lib/auth";
 
 const { users, auditLogs } = schema;
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -49,7 +51,9 @@ export async function changePassword(input: z.infer<typeof pwIn>): Promise<Resul
   if (!p.success) return { ok: false, error: p.error.issues[0].message };
   const [u] = await db().select().from(users).where(and(eq(users.id, s.uid), eq(users.organizationId, s.org)));
   if (!u || !(await bcrypt.compare(p.data.current, u.passwordHash))) return { ok: false, error: "Current password is incorrect" };
-  await db().update(users).set({ passwordHash: await bcrypt.hash(p.data.next, 11) }).where(eq(users.id, u.id));
+  await db().update(users).set({ passwordHash: await bcrypt.hash(p.data.next, 11), passwordChangedAt: new Date() }).where(eq(users.id, u.id));
+  // Other devices are signed out by the change; keep this one signed in with a fresh session.
+  (await cookies()).set(COOKIE, await signSession({ uid: s.uid, org: s.org, name: s.name, email: s.email, role: s.role }), cookieOptions);
   await db().insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: "auth.password_change", entity: "user", entityId: u.id });
   return { ok: true, data: null };
 }

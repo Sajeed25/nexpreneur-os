@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { isRole, type Role } from "./rbac";
 
-export type Session = { uid: string; org: string; name: string; email: string; role: Role; demo?: boolean };
+export type Session = { uid: string; org: string; name: string; email: string; role: Role; demo?: boolean; iat?: number };
 
 export const COOKIE = "nx_session";
 const MAX_AGE = 60 * 60 * 8;
@@ -28,7 +28,7 @@ export async function readSession(token?: string): Promise<Session | null> {
   try {
     const { payload: p } = await jwtVerify(token, key(), { algorithms: ["HS256"] });
     if (typeof p.uid === "string" && typeof p.org === "string" && typeof p.name === "string" && typeof p.email === "string" && isRole(p.role)) {
-      return { uid: p.uid, org: p.org, name: p.name, email: p.email, role: p.role, demo: p.demo === true };
+      return { uid: p.uid, org: p.org, name: p.name, email: p.email, role: p.role, demo: p.demo === true, iat: p.iat };
     }
   } catch {}
   return null;

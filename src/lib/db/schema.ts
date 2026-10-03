@@ -38,6 +38,7 @@ export const users = mysqlTable("users", {
   emergencyName: varchar("emergency_name", { length: 120 }),
   emergencyPhone: varchar("emergency_phone", { length: 20 }),
   lastLoginAt: timestamp("last_login_at"),
+  passwordChangedAt: datetime("password_changed_at"),
   createdAt: created(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [uniqueIndex("users_email").on(t.email), index("users_org").on(t.organizationId)]);
@@ -242,6 +243,15 @@ export const communityLikes = mysqlTable("community_likes", {
   postId: varchar("post_id", { length: 36 }).notNull().references(() => communityPosts.id),
   userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
 }, (t) => [uniqueIndex("cl_post_user").on(t.postId, t.userId)]);
+
+export const passwordResets = mysqlTable("password_resets", {
+  id: id(),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+  expiresAt: datetime("expires_at").notNull(),
+  usedAt: datetime("used_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("pr_token").on(t.tokenHash), index("pr_user").on(t.userId)]);
 
 export const auditLogs =mysqlTable("audit_logs", {
   id: id(),

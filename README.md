@@ -17,7 +17,7 @@ Without a valid `DATABASE_URL` the app runs in **demo mode** (role picker, sampl
 ## Deploy on Hostinger (Websites > Add website > Deploy Web App > GitHub)
 1. Framework Next.js, branch `main`, Node 20.x, build `npm run build`, start `npm start`.
 2. Create a MySQL database + user in hPanel. In phpMyAdmin **select the database first**, then import, in order:
-   `db/mysql-schema.sql`, `db/mysql-0002-bookings.sql`, `db/mysql-0003-billing.sql`, `db/mysql-0004-portal.sql`, `db/mysql-0005-phase6.sql`.
+   `db/mysql-schema.sql`, `db/mysql-0002-bookings.sql`, `db/mysql-0003-billing.sql`, `db/mysql-0004-portal.sql`, `db/mysql-0005-phase6.sql`, `db/mysql-0006-password-reset.sql`.
    Each file is meant to be imported once (the `ALTER`/index statements are not repeatable).
 3. Set environment variables (see below) and redeploy.
 4. Open `/register`. **The first account becomes the Owner** and creates the organization, 3 locations and 4 plans. Do this immediately after deploy.
@@ -33,6 +33,8 @@ Without a valid `DATABASE_URL` the app runs in **demo mode** (role picker, sampl
 | `AUTH_SECRET` | yes | 32+ random characters. Changing it signs everyone out |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | for online payments | Webhook URL `https://<domain>/api/razorpay/webhook`, event `payment.captured` |
 | `OPENAI_API_KEY`, `OPENAI_MODEL` | for the AI assistant | Model defaults to `gpt-4o-mini` |
+| `AUTH_URL` | for password reset | Exact public URL, e.g. `https://os.nexpreneur.com` (no trailing slash). Used for links in emails |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | for password reset | Hostinger mailbox: host `smtp.hostinger.com`, port `465`, user = full mailbox address |
 | `SELLER_NAME`, `SELLER_GSTIN` | optional | Printed on invoices |
 | `CSP_REPORT_ONLY` | optional | `1` = Content-Security-Policy reports only (use if a payment widget is blocked) |
 
@@ -55,5 +57,5 @@ Never commit real values. `.env*` is git-ignored except `.env.example`.
 - Runtime logs: hPanel > website > Runtime logs.
 
 ## Not built yet
-Password reset by email, magic link / Google login, emailing invoices and visitor invites, refunds, coupons, payment reminders,
+Magic link / Google login, emailing invoices and visitor invites, refunds, coupons, payment reminders,
 automatic renewal invoices, event images, location-filtered analytics, companies, services marketplace, notification center.

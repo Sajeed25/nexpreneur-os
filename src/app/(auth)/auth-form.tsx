@@ -13,10 +13,11 @@ const CFG = {
   reset: { action: resetPassword, cta: "Update password" },
 } as const;
 
-export function AuthForm({ kind, demo = false }: { kind: Kind; demo?: boolean }) {
+export function AuthForm({ kind, demo = false, token }: { kind: Kind; demo?: boolean; token?: string }) {
   const [state, act, pending] = React.useActionState<FormState, FormData>(CFG[kind].action, {});
   return (
     <form action={act} className="space-y-4" noValidate>
+      {kind === "reset" && <input type="hidden" name="token" value={token ?? ""} />}
       {kind === "register" && <Input name="name" label="Full name" autoComplete="name" />}
       {kind !== "reset" && <Input name="email" type="email" label="Email" autoComplete="email" placeholder="you@company.in" />}
       {kind !== "forgot" && <Input name="password" type="password" label={kind === "reset" ? "New password" : "Password"} autoComplete={kind === "login" ? "current-password" : "new-password"} />}
@@ -35,6 +36,7 @@ export function AuthForm({ kind, demo = false }: { kind: Kind; demo?: boolean })
         </>
       )}
       {state.error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{state.error}</p>}
+      {state.ok && <p role="status" className="rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">{state.ok}</p>}
       <Button type="submit" disabled={pending} className="w-full">{pending ? "Please wait…" : CFG[kind].cta}</Button>
       {kind === "login" && (
         <div className="grid grid-cols-2 gap-3">

@@ -50,3 +50,36 @@ describe("rate limiting", () => {
     expect(throttled(`other-${k}`, 3)).toBe(false);
   });
 });
+
+import { hashToken, newResetToken, sessionRevoked } from "@/lib/reset-token";
+import { appUrl } from "@/lib/mailer";
+
+describe("password reset tokens", () => {
+  it("makes unguessable unique tokens and stores only their hash", () => {
+    const a = newResetToken(), b = newResetToken();
+    expect(a.token).not.toBe(b.token);
+    expect(a.token.length).toBeGreaterThanOrEqual(40);
+    expect(a.hash).toBe(hashToken(a.token));
+    expect(a.hash).not.toContain(a.token);
+    expect(a.hash).toHaveLength(64);
+  });
+  it("revokes sessions issued before a password change, not after", () => {
+    const changed = new Date("2026-10-03T10:00:00.700Z");
+    const at = (s: string) => Math.floor(new Date(s).getTime() / 1000);
+    expect(sessionRevoked(at("2026-10-03T09:59:59Z"), changed)).toBe(true);
+    expect(sessionRevoked(at("2026-10-03T10:00:00.900Z"), changed)).toBe(false); // the fresh session issued by the change itself
+    expect(sessionRevoked(at("2026-10-03T10:05:00Z"), changed)).toBe(false);
+    expect(sessionRevoked(undefined, changed)).toBe(true);
+    expect(sessionRevoked(123, null)).toBe(false);
+  });
+});
+
+describe("reset link base URL", () => {
+  it("only trusts configured https URLs, never request data", () => {
+    const old = process.env.AUTH_URL;
+    try {
+      for (const bad of ["", "placeholder", "http://evil.test", "https://a.test/path", "javascript:alert(1)"]) { process.env.AUTH_URL = bad; expect(appUrl()).toBeNull(); }
+      process.env.AUTH_URL = "https://os.nexpreneur.com"; expect(appUrl()).toBe("https://os.nexpreneur.com");
+    } finally { process.env.AUTH_URL = old; }
+  });
+});

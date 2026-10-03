@@ -2,6 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { COOKIE, readSession, type Session } from "./auth";
 import { hasDb } from "./db/config";
+import { sessionRevoked } from "./reset-token";
 
 export type { Session };
 
@@ -18,9 +19,11 @@ export const getSession = cache(async (): Promise<Session | null> => {
   try {
     const { db, schema } = await import("./db");
     const { and, eq, isNull } = await import("drizzle-orm");
-    const [u] = await db().select({ role: schema.users.role, name: schema.users.name, org: schema.users.organizationId }).from(schema.users)
+    const [u] = await db().select({ role: schema.users.role, name: schema.users.name, org: schema.users.organizationId, changed: schema.users.passwordChangedAt }).from(schema.users)
       .where(and(eq(schema.users.id, s.uid), isNull(schema.users.deletedAt))).limit(1);
     if (!u || u.org !== s.org) return null;
+    // A password reset/change signs out every session issued before it.
+    if (sessionRevoked(s.iat, u.changed)) return null;
     return { ...s, role: u.role, name: u.name };
   } catch (e) {
     console.error("session lookup failed", e); // fail closed

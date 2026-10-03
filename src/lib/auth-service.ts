@@ -1,8 +1,10 @@
 import "server-only";
 import bcrypt from "bcryptjs";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import type { Role } from "@/lib/rbac";
+import { hashToken, newResetToken, RESET_TTL_MS } from "@/lib/reset-token";
+import { appUrl, resetEmail, sendMail } from "@/lib/mailer";
 
 // Loaded lazily (dynamic import) by the auth actions so the DB driver and hashing
 // libraries are never evaluated just to render the login/register pages.
@@ -47,5 +49,36 @@ export async function createAccount(name: string, email: string, password: strin
     await tx.insert(schema.users).values({ id: uid, organizationId: orgId, name, email, passwordHash: hash, role });
     await tx.insert(schema.auditLogs).values({ organizationId: orgId, actorId: uid, action: "auth.register", entity: "user", entityId: uid });
     return { uid, org: orgId, role };
+  });
+}
+
+/** Creates a single-use reset token and emails the link. Silent when the email has no account (no enumeration). */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const base = appUrl();
+  if (!base) throw new Error("AUTH_URL_NOT_SET");
+  const d = db();
+  const [u] = await d.select().from(schema.users).where(and(eq(schema.users.email, email), isNull(schema.users.deletedAt))).limit(1);
+  if (!u) return;
+  const { token, hash } = newResetToken();
+  await d.insert(schema.passwordResets).values({ userId: u.id, tokenHash: hash, expiresAt: new Date(Date.now() + RESET_TTL_MS) });
+  await d.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.reset_requested", entity: "user", entityId: u.id });
+  const mail = resetEmail(u.name, `${base}/reset-password?token=${token}`);
+  await sendMail(u.email, mail.subject, mail.text, mail.html);
+}
+
+/** Validates the token, sets the new password, burns the token and signs out older sessions. Returns false for a bad/expired/used token. */
+export async function completePasswordReset(token: string, newPassword: string): Promise<boolean> {
+  const hash = hashToken(token);
+  const newHash = await bcrypt.hash(newPassword, 11);
+  return db().transaction(async (tx) => {
+    const [r] = await tx.select().from(schema.passwordResets)
+      .where(and(eq(schema.passwordResets.tokenHash, hash), isNull(schema.passwordResets.usedAt), gt(schema.passwordResets.expiresAt, new Date()))).for("update");
+    if (!r) return false;
+    const [u] = await tx.select().from(schema.users).where(and(eq(schema.users.id, r.userId), isNull(schema.users.deletedAt)));
+    if (!u) return false;
+    await tx.update(schema.users).set({ passwordHash: newHash, passwordChangedAt: new Date() }).where(eq(schema.users.id, u.id));
+    await tx.update(schema.passwordResets).set({ usedAt: new Date() }).where(and(eq(schema.passwordResets.userId, u.id), isNull(schema.passwordResets.usedAt)));
+    await tx.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.password_reset", entity: "user", entityId: u.id });
+    return true;
   });
 }
