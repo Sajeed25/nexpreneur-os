@@ -26,7 +26,7 @@ export const ACCESS: Record<Role, Section[]> = {
   location_manager: ALL.filter((s) => s !== "settings"),
   reception: ["dashboard", "bookings", "calendar", "members", "visitors", "resources", "support", "notifications", "profile"],
   finance: ["dashboard", "payments", "invoices", "analytics", "memberships", "notifications", "profile"],
-  community_manager: ["dashboard", "events", "community", "members", "notifications", "profile"],
+  community_manager: ["dashboard", "events", "community", "members", "invoices", "notifications", "profile"],
   staff: ["dashboard", "bookings", "calendar", "resources", "visitors", "notifications", "profile"],
   member: ["dashboard", "bookings", "memberships", "payments", "invoices", "events", "community", "visitors", "ai", "support", "notifications", "profile"],
 };
