@@ -6,11 +6,13 @@ import { AreaSeries, BarSeries, ChartCard, LineSeries, compactInr } from "@/comp
 import type { Analytics } from "@/lib/analytics";
 import { rupees } from "@/lib/booking";
 import { cn } from "@/lib/utils";
+import { useLocation } from "@/components/shell/app-shell";
 import { exportCsv, getAnalytics } from "./actions";
 
 const RANGES = [["7d", "7 Days"], ["30d", "30 Days"], ["90d", "90 Days"], ["year", "This Year"]] as const;
 
 export function AnalyticsApp() {
+  const { loc } = useLocation();
   const [range, setRange] = React.useState<string>("30d");
   const [a, setA] = React.useState<Analytics | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -20,17 +22,17 @@ export function AnalyticsApp() {
   React.useEffect(() => {
     let live = true;
     setLoading(true);
-    getAnalytics(range).then((r) => {
+    getAnalytics(range, loc).then((r) => {
       if (!live) return;
       setLoading(false);
       if (r.ok) { setError(null); setA(r.data); } else setError(r.error);
     }).catch(() => { if (live) { setLoading(false); setError("Couldn't load analytics."); } });
     return () => { live = false; };
-  }, [range]);
+  }, [range, loc]);
 
   const download = async () => {
     setExporting(true);
-    const r = await exportCsv(range);
+    const r = await exportCsv(range, loc);
     setExporting(false);
     if (!r.ok) { setError(r.error); return; }
     const url = URL.createObjectURL(new Blob(["﻿" + r.data.csv], { type: "text/csv;charset=utf-8" }));
@@ -85,7 +87,7 @@ export function AnalyticsApp() {
                   <tbody>{a.locations.map((l) => <tr key={l.city} className="border-t"><td className="py-2 font-medium">{l.city}</td><td className="text-right">{l.bookings}</td><td className="text-right">{rupees(l.revenuePaise)}</td><td className="text-right">{l.occupancyPct}%</td></tr>)}</tbody>
                 </table>
               </div>
-              <p className="mt-3 text-xs text-muted">Figures cover the whole organisation; the location selector doesn&apos;t filter this page.</p>
+              <p className="mt-3 text-xs text-muted">This table always compares every location. Lead conversion and membership conversion are organisation-wide.</p>
             </Card>
           </div>
         </div>

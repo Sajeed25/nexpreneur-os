@@ -112,6 +112,6 @@ CREATE INDEX IF NOT EXISTS `rf_org_time` ON `refunds` (`organization_id`,`create
 CREATE INDEX IF NOT EXISTS `so_org_time` ON `service_orders` (`organization_id`,`created_at`);
 CREATE INDEX IF NOT EXISTS `so_user` ON `service_orders` (`user_id`);
 CREATE INDEX IF NOT EXISTS `svc_org` ON `services` (`organization_id`);
--- Backfill: existing memberships/invoices get the first location so location filters include them.
+-- Backfill: give existing memberships/invoices the organisation's first location, so the new location filters include them.
 UPDATE `memberships` SET `location_id` = (SELECT `id` FROM `locations` WHERE `organization_id` = `memberships`.`organization_id` ORDER BY `created_at` LIMIT 1) WHERE `location_id` IS NULL;
-UPDATE `invoices` SET `location_id` = (SELECT `id` FROM `locations` WHERE `organization_id` = `invoices`.`organization_id` ORDER BY `created_at` LIMIT 1) WHERE `location_id` IS NULL AND `id` IN (SELECT `invoice_id` FROM `payments`) OR (`location_id` IS NULL AND `user_id` IN (SELECT `user_id` FROM `memberships`));
+UPDATE `invoices` SET `location_id` = (SELECT `id` FROM `locations` WHERE `organization_id` = `invoices`.`organization_id` ORDER BY `created_at` LIMIT 1) WHERE `location_id` IS NULL;

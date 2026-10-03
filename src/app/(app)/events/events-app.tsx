@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Calendar, MapPin, Users } from "lucide-react";
 import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { SLOTS, fmtIST, rupees, todayIST } from "@/lib/booking";
+import { uploadImage } from "@/app/images/actions";
+import { resizeToJpeg } from "@/lib/client-image";
 import { cancelRegistration, createEvent, listAttendees, listEvents, registerForEvent, setPublished, type EventDTO } from "./actions";
 
 const field = "mt-1.5 h-11 w-full rounded-xl border bg-surface px-3 text-[15px] outline-none focus:border-accent";
@@ -34,7 +36,17 @@ export function EventsApp({ manage }: { manage: boolean }) {
     const f = new FormData(form);
     const g = (k: string) => String(f.get(k) ?? "");
     setBusy("new");
-    const r = await createEvent({ title: g("title"), description: g("description"), date: g("date"), start: g("start"), end: g("end"), venue: g("venue"), capacity: Number(g("capacity")), price: Number(g("price") || 0), organizer: g("organizer"), publish: f.get("publish") === "on" });
+    let imageId: string | undefined;
+    const photo = f.get("photo");
+    if (photo instanceof File && photo.size > 0) {
+      const blob = await resizeToJpeg(photo);
+      if (!blob) { setBusy(null); setError("That file isn't a readable image."); return; }
+      const up = new FormData(); up.set("file", new File([blob], "event.jpg", { type: "image/jpeg" }));
+      const u = await uploadImage(up);
+      if (!u.ok) { setBusy(null); setError(u.error); return; }
+      imageId = u.id;
+    }
+    const r = await createEvent({ imageId, title: g("title"), description: g("description"), date: g("date"), start: g("start"), end: g("end"), venue: g("venue"), capacity: Number(g("capacity")), price: Number(g("price") || 0), organizer: g("organizer"), publish: f.get("publish") === "on" });
     setBusy(null);
     if (!r.ok) setError(r.error); else { setError(null); form.reset(); setShowForm(false); setTick((t) => t + 1); }
   };
@@ -81,7 +93,7 @@ export function EventsApp({ manage }: { manage: boolean }) {
             <label className="text-sm font-medium">Ticket price (₹, before GST)<input name="price" type="number" min={0} defaultValue={0} className={field} /></label>
             <label className="text-sm font-medium">Organizer<input name="organizer" maxLength={120} className={field} /></label>
             <label className="flex items-center gap-2 pt-7 text-sm"><input type="checkbox" name="publish" defaultChecked />Publish now</label>
-            <p className="text-xs text-muted sm:col-span-2">Event images are coming soon.</p>
+            <label className="text-sm font-medium sm:col-span-2">Event image (optional)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" className="mt-1.5 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-accent" /></label>
             <Button type="submit" disabled={busy === "new"} className="sm:col-span-2">{busy === "new" ? "Saving…" : "Create event"}</Button>
           </form>
         </Card>
@@ -92,7 +104,9 @@ export function EventsApp({ manage }: { manage: boolean }) {
           {rows.map((e) => {
             const left = e.capacity - e.registered;
             return (
-              <Card key={e.id} className="space-y-3">
+              <Card key={e.id} className="space-y-3 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {e.imageId && <img src={`/api/images/${e.imageId}`} alt="" loading="lazy" className="-mx-5 -mt-5 mb-1 h-40 w-[calc(100%+2.5rem)] max-w-none object-cover" />}
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="text-lg font-semibold">{e.title}</h2>
                   {manage && <Badge tone={e.published ? "green" : "grey"}>{e.published ? "Published" : "Draft"}</Badge>}

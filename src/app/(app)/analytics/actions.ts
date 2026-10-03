@@ -3,7 +3,7 @@ import { hasDb } from "@/lib/db/config";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { isFinance } from "@/lib/billing";
-import { computeAnalytics, RANGES, type Analytics, type RangeKey } from "@/lib/analytics";
+import { computeAnalytics, locationIdFor, RANGES, type Analytics, type RangeKey } from "@/lib/analytics";
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -14,11 +14,11 @@ async function ctx() {
 const NO = "Analytics is available to owners, managers and finance once the database is connected.";
 const okRange = (r: string): r is RangeKey => (RANGES as string[]).includes(r);
 
-export async function getAnalytics(range: string): Promise<Result<Analytics>> {
+export async function getAnalytics(range: string, loc?: string): Promise<Result<Analytics>> {
   const s = await ctx();
   if (!s) return { ok: false, error: NO };
   if (!okRange(range)) return { ok: false, error: "Invalid range" };
-  return { ok: true, data: await computeAnalytics(s.org, range, { finance: true }) };
+  return { ok: true, data: await computeAnalytics(s.org, range, { finance: true, locationId: await locationIdFor(s.org, loc) }) };
 }
 
 // Spreadsheet apps run text starting with = + - @ as formulas. Neutralise it, then quote.
@@ -29,15 +29,15 @@ const cell = (v: string | number) => {
 };
 const row = (...c: (string | number)[]) => c.map(cell).join(",");
 
-export async function exportCsv(range: string): Promise<Result<{ filename: string; csv: string }>> {
+export async function exportCsv(range: string, loc?: string): Promise<Result<{ filename: string; csv: string }>> {
   const s = await ctx();
   if (!s) return { ok: false, error: NO };
   if (!okRange(range)) return { ok: false, error: "Invalid range" };
-  const a = await computeAnalytics(s.org, range, { finance: true });
+  const a = await computeAnalytics(s.org, range, { finance: true, locationId: await locationIdFor(s.org, loc) });
   const k = a.kpis;
   const rs = (p: number) => Math.round(p) / 100;
   const lines = [
-    row("Nexpreneur OS analytics", range), "",
+    row("Nexpreneur OS analytics", range, loc && loc !== "all" ? `location: ${loc}` : "all locations"), "",
     row("Metric", "Value"),
     row("Collected (incl. GST, INR)", rs(k.collectedPaise)), row("MRR (INR)", rs(k.mrrPaise)), row("ARR (INR)", rs(k.arrPaise)),
     row("Active members", k.activeMembers), row("New members", k.newMembers), row("Churn %", k.churnPct), row("Bookings", k.bookings),
@@ -48,5 +48,5 @@ export async function exportCsv(range: string): Promise<Result<{ filename: strin
     row("Location", "Bookings", "Booking revenue (INR)", "Occupancy %"),
     ...a.locations.map((l) => row(l.city, l.bookings, rs(l.revenuePaise), l.occupancyPct)),
   ];
-  return { ok: true, data: { filename: `nexpreneur-analytics-${range}.csv`, csv: lines.join("\r\n") } };
+  return { ok: true, data: { filename: `nexpreneur-analytics-${range}${loc && loc !== "all" ? `-${loc}` : ""}.csv`, csv: lines.join("\r\n") } };
 }

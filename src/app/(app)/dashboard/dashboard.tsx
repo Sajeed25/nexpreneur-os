@@ -47,6 +47,7 @@ function greeting() {
 }
 
 export function Dashboard({ name }: { name: string }) {
+  const { loc } = useLocation();
   const [range, setRange] = React.useState("30d");
   const [real, setReal] = React.useState<DashboardDTO | null>(null);
   const [demo, setDemo] = React.useState(false);
@@ -56,7 +57,7 @@ export function Dashboard({ name }: { name: string }) {
   React.useEffect(() => {
     let live = true;
     setLoading(true);
-    getDashboard(range).then((r) => {
+    getDashboard(range, loc).then((r) => {
       if (!live) return;
       setLoading(false);
       if (r.ok) { setReal(r.data); setDemo(false); setError(null); }
@@ -64,7 +65,7 @@ export function Dashboard({ name }: { name: string }) {
       else setError(r.error);
     }).catch(() => { if (live) { setLoading(false); setError("Couldn't load the dashboard."); } });
     return () => { live = false; };
-  }, [range]);
+  }, [range, loc]);
 
   if (demo) return <DemoDashboard name={name} />;
   const a = real?.analytics;
@@ -77,7 +78,7 @@ export function Dashboard({ name }: { name: string }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`${greeting()}, ${name}`} sub="Nexpreneur · all locations" actions={<RangeTabs range={range} setRange={setRange} />} />
+      <PageHeader title={`${greeting()}, ${name}`} sub={`Nexpreneur · ${LOCATIONS.find((l) => l.id === loc)?.name ?? "All Locations"}`} actions={<RangeTabs range={range} setRange={setRange} />} />
       {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
       {loading && !real && <p className="text-sm text-muted">Loading…</p>}
       {real && a && (

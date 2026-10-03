@@ -5,7 +5,7 @@ import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { isFinance } from "@/lib/billing";
 import { todayIST } from "@/lib/booking";
-import { computeAnalytics, RANGES, type Analytics, type RangeKey } from "@/lib/analytics";
+import { computeAnalytics, locationIdFor, RANGES, type Analytics, type RangeKey } from "@/lib/analytics";
 
 const { bookings, resources, memberships, membershipPlans, invoices, payments, leads, events, auditLogs, users } = schema;
 export type MemberHomeDTO = {
@@ -52,7 +52,7 @@ const ACTION_TEXT: Record<string, string> = {
 };
 
 /** Admin dashboard. Money figures and money lists are only returned to finance-capable roles. */
-export async function getDashboard(range: string): Promise<{ ok: true; data: DashboardDTO } | { ok: false; error: string }> {
+export async function getDashboard(range: string, loc?: string): Promise<{ ok: true; data: DashboardDTO } | { ok: false; error: string }> {
   const s = await getSession();
   if (!s || s.demo || !hasDb() || !can(s.role, "dashboard") || s.role === "member") return { ok: false, error: "demo" };
   if (!(RANGES as string[]).includes(range)) return { ok: false, error: "Invalid range" };
@@ -60,7 +60,7 @@ export async function getDashboard(range: string): Promise<{ ok: true; data: Das
   const d = db();
   const now = new Date();
   const [analytics, bks, pays, lds, evs, rens, acts] = await Promise.all([
-    computeAnalytics(s.org, range as RangeKey, { finance }),
+    computeAnalytics(s.org, range as RangeKey, { finance, locationId: await locationIdFor(s.org, loc) }),
     d.select({ who: users.name, what: resources.name, startsAt: bookings.startsAt }).from(bookings)
       .innerJoin(resources, eq(resources.id, bookings.resourceId)).innerJoin(users, eq(users.id, bookings.userId))
       .where(and(eq(bookings.organizationId, s.org), inArray(bookings.status, ["confirmed", "pending"]), gte(bookings.endsAt, now))).orderBy(asc(bookings.startsAt)).limit(5),

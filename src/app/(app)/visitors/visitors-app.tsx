@@ -3,7 +3,7 @@ import * as React from "react";
 import QRCode from "qrcode";
 import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { SLOTS, fmtIST, todayIST } from "@/lib/booking";
-import { inviteVisitor, listVisitors, updateVisitor, type VisitorDTO } from "./actions";
+import { inviteVisitor, listVisitors, resendInvite, updateVisitor, type VisitorDTO } from "./actions";
 
 const field = "mt-1.5 h-11 w-full rounded-xl border bg-surface px-3 text-[15px] outline-none focus:border-accent";
 const TONE = { invited: "amber", checked_in: "green", checked_out: "grey", cancelled: "red" } as const;
@@ -41,10 +41,11 @@ export function VisitorsApp({ desk }: { desk: boolean }) {
     const form = e.currentTarget;
     const f = new FormData(form);
     setBusy(true);
-    const r = await inviteVisitor({ name: String(f.get("name")), phone: String(f.get("phone")), date: String(f.get("date")), time: String(f.get("time")), purpose: String(f.get("purpose")) });
+    const r = await inviteVisitor({ name: String(f.get("name")), phone: String(f.get("phone")), date: String(f.get("date")), time: String(f.get("time")), purpose: String(f.get("purpose")), email: String(f.get("email") ?? "") });
     setBusy(false);
     if (!r.ok) { setError(r.error); return; }
-    setError(null); setShown({ name: String(f.get("name")), token: r.data.token }); form.reset(); setTick((t) => t + 1);
+    setError(null); setInfo(r.data.emailed ? `Invitation emailed to ${String(f.get("email"))}.` : r.data.emailNote ? `Invite created, but: ${r.data.emailNote}` : null);
+    setShown({ name: String(f.get("name")), token: r.data.token }); form.reset(); setTick((t) => t + 1);
   };
   const run = async (input: Parameters<typeof updateVisitor>[0], done: string) => {
     setError(null); setInfo(null);
@@ -71,6 +72,7 @@ export function VisitorsApp({ desk }: { desk: boolean }) {
       </div>
       <div className="flex gap-2">
         {v.status === "invited" && <Button variant="secondary" size="sm" onClick={() => setShown({ name: v.name, token: v.token })}>Show QR</Button>}
+        {v.status === "invited" && v.email && <Button variant="secondary" size="sm" onClick={async () => { setError(null); const r = await resendInvite(v.id); if (!r.ok) setError(r.error); else setInfo(`Invitation re-sent to ${v.email}.`); }}>Resend</Button>}
         {desk && v.status === "invited" && v.date === today && <Button size="sm" onClick={() => run({ id: v.id, action: "check_in" }, "checked in")}>Check in</Button>}
         {desk && v.status === "checked_in" && <Button size="sm" onClick={() => run({ id: v.id, action: "check_out" }, "checked out")}>Check out</Button>}
         {v.status === "invited" && <Button variant="ghost" size="sm" onClick={() => run({ id: v.id, action: "cancel" }, "invitation cancelled")}>Cancel</Button>}
@@ -99,6 +101,7 @@ export function VisitorsApp({ desk }: { desk: boolean }) {
           <form onSubmit={invite} className="grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-medium">Visitor name<input name="name" required minLength={2} maxLength={160} className={field} /></label>
             <label className="text-sm font-medium">Phone<input name="phone" type="tel" maxLength={20} className={field} /></label>
+            <label className="text-sm font-medium sm:col-span-2">Visitor email (optional, we'll email the QR code)<input name="email" type="email" maxLength={190} className={field} /></label>
             <label className="text-sm font-medium">Date<input name="date" type="date" min={today} defaultValue={today} required className={field} /></label>
             <label className="text-sm font-medium">Time<select name="time" defaultValue="10:00" className={field}>{SLOTS.map((s) => <option key={s}>{s}</option>)}</select></label>
             <label className="text-sm font-medium sm:col-span-2">Purpose<input name="purpose" maxLength={255} className={field} placeholder="Client meeting" /></label>
@@ -114,7 +117,7 @@ export function VisitorsApp({ desk }: { desk: boolean }) {
             <p className="text-lg font-semibold">{shown.name}</p>
             <p className="text-sm text-muted">Show this QR code (or the code below) at reception.</p>
             <code className="block break-all rounded-lg bg-surface-2 px-2 py-1 text-xs">{shown.token}</code>
-            <p className="text-xs text-muted">Sending the invite by email or WhatsApp is coming soon. For now, screenshot this and share it.</p>
+            <p className="text-xs text-muted">If you added an email address, the visitor already has this QR code in their inbox. You can also screenshot it.</p>
             <Button variant="secondary" size="sm" onClick={() => setShown(null)}>Close</Button>
           </div>
         </Card>

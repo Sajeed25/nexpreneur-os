@@ -13,7 +13,7 @@ const { events, eventRegistrations, users, auditLogs } = schema;
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 export type EventDTO = {
   id: string; title: string; description: string; startsAt: string; endsAt: string; venue: string; capacity: number;
-  pricePaise: number; organizer: string; published: boolean; registered: number; mine: boolean; invoiceId: string | null;
+  pricePaise: number; organizer: string; published: boolean; registered: number; mine: boolean; invoiceId: string | null; imageId: string | null;
 };
 const MANAGE = ["super_admin", "owner", "location_manager", "community_manager"];
 const NO = "Sign in with a real account to use events.";
@@ -39,7 +39,7 @@ export async function listEvents(): Promise<Result<EventDTO[]>> {
     const r = regs.filter((x) => x.eventId === e.id);
     const mine = r.find((x) => x.userId === s.uid);
     return { id: e.id, title: e.title, description: e.description ?? "", startsAt: e.startsAt.toISOString(), endsAt: e.endsAt.toISOString(), venue: e.venue ?? "", capacity: e.capacity,
-      pricePaise: e.pricePaise, organizer: e.organizer ?? "", published: e.published, registered: r.length, mine: !!mine, invoiceId: mine?.invoiceId ?? null };
+      pricePaise: e.pricePaise, organizer: e.organizer ?? "", published: e.published, registered: r.length, mine: !!mine, invoiceId: mine?.invoiceId ?? null, imageId: e.imageId };
   }) };
 }
 
@@ -47,7 +47,7 @@ const eventIn = z.object({
   title: z.string().trim().min(3, "Add a title").max(160), description: z.string().trim().max(2000),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), start: z.string().regex(/^\d{2}:\d{2}$/), end: z.string().regex(/^\d{2}:\d{2}$/),
   venue: z.string().trim().max(160), capacity: z.number().int().min(1).max(5000), price: z.number().min(0).max(1_000_000), organizer: z.string().trim().max(120),
-  publish: z.boolean(),
+  publish: z.boolean(), imageId: z.string().uuid().optional(),
 });
 export async function createEvent(input: z.infer<typeof eventIn>): Promise<Result<null>> {
   const s = await ctx();
@@ -59,8 +59,12 @@ export async function createEvent(input: z.infer<typeof eventIn>): Promise<Resul
   const startsAt = istToDate(v.date, v.start), endsAt = istToDate(v.date, v.end);
   if (isNaN(startsAt.getTime()) || endsAt <= startsAt) return { ok: false, error: "End time must be after start time" };
   if (v.date < todayIST()) return { ok: false, error: "The event date is in the past" };
+  if (v.imageId) {
+    const [img] = await db().select({ id: schema.images.id }).from(schema.images).where(and(eq(schema.images.id, v.imageId), eq(schema.images.organizationId, s.org)));
+    if (!img) return { ok: false, error: "That image wasn't found. Upload it again." };
+  }
   const id = crypto.randomUUID();
-  await db().insert(events).values({ id, organizationId: s.org, title: v.title, description: v.description || null, startsAt, endsAt, venue: v.venue || null, capacity: v.capacity, pricePaise: toPaise(v.price), organizer: v.organizer || null, published: v.publish });
+  await db().insert(events).values({ id, imageId: v.imageId ?? null, organizationId: s.org, title: v.title, description: v.description || null, startsAt, endsAt, venue: v.venue || null, capacity: v.capacity, pricePaise: toPaise(v.price), organizer: v.organizer || null, published: v.publish });
   await db().insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: "event.create", entity: "event", entityId: id });
   return { ok: true, data: null };
 }
