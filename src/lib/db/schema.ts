@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, date, datetime, index, int, json, mysqlEnum, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { bigint, boolean, date, datetime, index, int, json, mysqlEnum, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 import { ROLES } from "@/lib/rbac";
 
 const id = () => varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID());
@@ -153,6 +153,95 @@ export const supportTickets = mysqlTable("support_tickets", {
   createdAt: created(),
   closedAt: timestamp("closed_at"),
 }, (t) => [index("tk_org_status").on(t.organizationId, t.status), index("tk_user").on(t.userId)]);
+
+export const visitorInvites = mysqlTable("visitor_invites", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
+  hostUserId: varchar("host_user_id", { length: 36 }).notNull().references(() => users.id),
+  name: varchar("name", { length: 160 }).notNull(),
+  phone: varchar("phone", { length: 20 }),
+  visitDate: date("visit_date", { mode: "string" }).notNull(),
+  visitTime: varchar("visit_time", { length: 5 }).notNull(),
+  purpose: varchar("purpose", { length: 255 }),
+  token: varchar("token", { length: 40 }).notNull(),
+  status: mysqlEnum("status", ["invited", "checked_in", "checked_out", "cancelled"]).notNull().default("invited"),
+  checkedInAt: datetime("checked_in_at"),
+  checkedOutAt: datetime("checked_out_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("vi_token").on(t.token), index("vi_org_date").on(t.organizationId, t.visitDate), index("vi_host").on(t.hostUserId)]);
+
+export const LEAD_STAGES = ["new", "contacted", "tour_scheduled", "proposal_sent", "negotiation", "won", "lost"] as const;
+export const leads = mysqlTable("leads", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
+  name: varchar("name", { length: 160 }).notNull(),
+  company: varchar("company", { length: 160 }),
+  phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 190 }),
+  requirements: varchar("requirements", { length: 1000 }),
+  interestedPlan: varchar("interested_plan", { length: 120 }),
+  expectedValuePaise: bigint("expected_value_paise", { mode: "number" }).notNull().default(0),
+  stage: mysqlEnum("stage", LEAD_STAGES).notNull().default("new"),
+  createdAt: created(),
+}, (t) => [index("lead_org_stage").on(t.organizationId, t.stage)]);
+
+export const leadActivities = mysqlTable("lead_activities", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  leadId: varchar("lead_id", { length: 36 }).notNull().references(() => leads.id),
+  kind: mysqlEnum("kind", ["note", "call", "stage"]).notNull().default("note"),
+  note: varchar("note", { length: 1000 }).notNull(),
+  createdBy: varchar("created_by", { length: 36 }),
+  createdAt: created(),
+}, (t) => [index("la_lead").on(t.leadId, t.createdAt)]);
+
+export const events = mysqlTable("events", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
+  title: varchar("title", { length: 160 }).notNull(),
+  description: varchar("description", { length: 2000 }),
+  startsAt: datetime("starts_at").notNull(),
+  endsAt: datetime("ends_at").notNull(),
+  venue: varchar("venue", { length: 160 }),
+  capacity: int("capacity").notNull().default(50),
+  pricePaise: bigint("price_paise", { mode: "number" }).notNull().default(0),
+  organizer: varchar("organizer", { length: 120 }),
+  published: boolean("published").notNull().default(false),
+  createdAt: created(),
+}, (t) => [index("ev_org_start").on(t.organizationId, t.startsAt)]);
+
+export const eventRegistrations = mysqlTable("event_registrations", {
+  id: id(),
+  eventId: varchar("event_id", { length: 36 }).notNull().references(() => events.id),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+  invoiceId: varchar("invoice_id", { length: 36 }),
+  status: mysqlEnum("status", ["registered", "cancelled"]).notNull().default("registered"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("er_event_user").on(t.eventId, t.userId)]);
+
+export const communityPosts = mysqlTable("community_posts", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
+  authorId: varchar("author_id", { length: 36 }).notNull().references(() => users.id),
+  kind: mysqlEnum("kind", ["update", "opportunity", "job", "question", "announcement"]).notNull().default("update"),
+  body: varchar("body", { length: 2000 }).notNull(),
+  createdAt: created(),
+  deletedAt: timestamp("deleted_at"),
+}, (t) => [index("cp_org_time").on(t.organizationId, t.createdAt)]);
+
+export const communityComments = mysqlTable("community_comments", {
+  id: id(),
+  postId: varchar("post_id", { length: 36 }).notNull().references(() => communityPosts.id),
+  authorId: varchar("author_id", { length: 36 }).notNull().references(() => users.id),
+  body: varchar("body", { length: 1000 }).notNull(),
+  createdAt: created(),
+}, (t) => [index("cc_post").on(t.postId, t.createdAt)]);
+
+export const communityLikes = mysqlTable("community_likes", {
+  id: id(),
+  postId: varchar("post_id", { length: 36 }).notNull().references(() => communityPosts.id),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+}, (t) => [uniqueIndex("cl_post_user").on(t.postId, t.userId)]);
 
 export const auditLogs =mysqlTable("audit_logs", {
   id: id(),

@@ -30,3 +30,5 @@ Phase 3 DB step: import db/mysql-0002-bookings.sql in phpMyAdmin (after mysql-sc
 Phase 4 DB step: import db/mysql-0003-billing.sql. Razorpay webhook: https://<domain>/api/razorpay/webhook, event payment.captured, secret = RAZORPAY_WEBHOOK_SECRET.
 
 Phase 5 DB step: import db/mysql-0004-portal.sql (adds profile columns to users + support_tickets).
+
+Phase 6 DB step: select the database in phpMyAdmin, then import db/mysql-0005-phase6.sql (visitors, CRM, events, community).

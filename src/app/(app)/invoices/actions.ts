@@ -7,6 +7,7 @@ import { getSession, type Session } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { CYCLE_MONTHS, addMonths, gst, invoiceNumber, isFinance, isManager, toPaise, SELLER_STATE, type Line } from "@/lib/billing";
 import { todayIST } from "@/lib/booking";
+import { issueInvoice } from "@/lib/invoicing";
 import { applyPayment, rzpAuth, rzpKeys, recordRazorpay, safeEq, type Tx } from "@/lib/payments-server";
 
 const { users, membershipPlans, memberships, invoices, invoiceItems, payments, organizations, auditLogs } = schema;
@@ -93,24 +94,6 @@ export async function assignMembership(input: z.infer<typeof assignIn>): Promise
 }
 
 // ---------- Invoices ----------
-async function issueInvoice(tx: Tx, s: Session, userId: string, lines: Line[], issueDate: string, interstate: boolean, buyerGstin: string | null, dueInDays = 7) {
-  // Lock the org row so invoice numbers are sequential with no gaps or duplicates.
-  await tx.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, s.org)).for("update");
-  const year = Number(issueDate.slice(0, 4));
-  const [c] = await tx.select({ n: sql<number>`count(*)` }).from(invoices)
-    .where(and(eq(invoices.organizationId, s.org), sql`${invoices.number} like ${`INV-${year}-%`}`));
-  const number = invoiceNumber(year, Number(c.n) + 1);
-  const t = gst(lines, interstate);
-  const id = crypto.randomUUID();
-  const due = new Date(new Date(`${issueDate}T00:00:00Z`).getTime() + dueInDays * 86_400_000).toISOString().slice(0, 10);
-  await tx.insert(invoices).values({
-    id, organizationId: s.org, userId, number, issueDate, dueDate: due, subtotalPaise: t.subtotal, cgstPaise: t.cgst, sgstPaise: t.sgst, igstPaise: t.igst,
-    totalPaise: t.total, placeOfSupply: interstate ? "Other state" : SELLER_STATE, buyerGstin,
-  });
-  await tx.insert(invoiceItems).values(lines.map((l) => ({ invoiceId: id, description: l.description, qty: l.qty, unitPaise: l.unitPaise, taxPct: l.taxPct, hsnSac: l.hsnSac ?? "997212" })));
-  await tx.insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: "invoice.create", entity: "invoice", entityId: id });
-  return id;
-}
 
 export type InvoiceRow = {
   id: string; number: string; who: string; issueDate: string; dueDate: string;
