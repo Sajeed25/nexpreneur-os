@@ -15,10 +15,17 @@ async function run(req: Request) {
   const given = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!safeEq(given, secret)) return new Response("Unauthorized", { status: 401 });
 
-  const { runRenewals, runReminders } = await import("@/lib/daily-jobs");
-  const renewals = await runRenewals();
-  const reminders = await runReminders();
-  return Response.json({ ok: true, renewals, reminders });
+  try {
+    const { runRenewals, runReminders } = await import("@/lib/daily-jobs");
+    const renewals = await runRenewals();
+    const reminders = await runReminders();
+    return Response.json({ ok: true, renewals, reminders });
+  } catch (e) {
+    // Report a short code (no secrets) so a failing schedule is easy to diagnose, e.g. ER_BAD_FIELD_ERROR = run the latest SQL file.
+    const o = e as { code?: string; cause?: { code?: string }; name?: string };
+    console.error("daily job failed", e);
+    return Response.json({ ok: false, error: o.code ?? o.cause?.code ?? o.name ?? "unknown" }, { status: 500 });
+  }
 }
 
 export const GET = run;
