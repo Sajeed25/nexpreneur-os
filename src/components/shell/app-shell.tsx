@@ -49,7 +49,7 @@ export function AppShell({ user, children }: { user: { name: string; role: Role 
   const changeLoc = (l: string) => { setLoc(l); try { localStorage.setItem("nx_loc", l); } catch {} };
 
   const items = NAV.filter((n) => ACCESS[user.role].includes(n.section));
-  const mobileItems = items.slice(0, 5);
+  const mobileItems = (user.role === "member" ? ["dashboard", "bookings", "memberships", "payments", "profile"].map((s) => items.find((n) => n.section === s)!).filter(Boolean) : items.filter((n) => n.section !== "profile")).slice(0, 5);
   const isOwner = user.role === "owner" || user.role === "super_admin";
   const locations = isOwner ? LOCATIONS : LOCATIONS.filter((l) => l.id !== "all");
 
@@ -68,7 +68,7 @@ export function AppShell({ user, children }: { user: { name: string; role: Role 
                 <Link key={section} href={href} title={label} aria-current={active ? "page" : undefined}
                   className={cn("flex h-10 items-center gap-3 rounded-xl px-3 text-[15px] transition", active ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-surface-2 hover:text-fg")}>
                   <Icon size={19} className="shrink-0" />
-                  {!collapsed && label}
+                  {!collapsed && (user.role === "member" && section === "dashboard" ? "Home" : label)}
                 </Link>
               );
             })}
@@ -100,6 +100,7 @@ export function AppShell({ user, children }: { user: { name: string; role: Role 
                 {menu && (
                   <div className="absolute right-0 mt-2 w-56 rounded-2xl border bg-surface p-2 shadow-soft">
                     <div className="px-3 py-2"><p className="text-sm font-medium">{user.name}</p><p className="text-xs text-muted">{ROLE_LABEL[user.role]}</p></div>
+                    <Link href="/profile" onClick={() => setMenu(false)} className="flex h-10 w-full items-center gap-2 rounded-xl px-3 text-sm hover:bg-surface-2">Profile</Link>
                     <form action={signOut}>
                       <button className="flex h-10 w-full items-center gap-2 rounded-xl px-3 text-sm hover:bg-surface-2"><LogOut size={16} />Sign out</button>
                     </form>

@@ -32,6 +32,11 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 190 }).notNull(),
   passwordHash: varchar("password_hash", { length: 100 }).notNull(),
   role: mysqlEnum("role", ROLES).notNull().default("member"),
+  phone: varchar("phone", { length: 20 }),
+  jobTitle: varchar("job_title", { length: 120 }),
+  company: varchar("company", { length: 160 }),
+  emergencyName: varchar("emergency_name", { length: 120 }),
+  emergencyPhone: varchar("emergency_phone", { length: 20 }),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: created(),
   deletedAt: timestamp("deleted_at"),
@@ -137,6 +142,17 @@ export const payments = mysqlTable("payments", {
   recordedBy: varchar("recorded_by", { length: 36 }),
   createdAt: created(),
 }, (t) => [uniqueIndex("pay_rzp").on(t.razorpayPaymentId), index("pay_org_time").on(t.organizationId, t.createdAt), index("pay_invoice").on(t.invoiceId)]);
+
+export const supportTickets = mysqlTable("support_tickets", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
+  userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
+  subject: varchar("subject", { length: 160 }).notNull(),
+  body: varchar("body", { length: 2000 }).notNull(),
+  status: mysqlEnum("status", ["open", "closed"]).notNull().default("open"),
+  createdAt: created(),
+  closedAt: timestamp("closed_at"),
+}, (t) => [index("tk_org_status").on(t.organizationId, t.status), index("tk_user").on(t.userId)]);
 
 export const auditLogs =mysqlTable("audit_logs", {
   id: id(),

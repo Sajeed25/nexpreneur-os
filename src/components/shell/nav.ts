@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CalendarCheck, CalendarDays, Users, Building2, BadgeCheck, MapPin, Armchair,
   CreditCard, FileText, DoorOpen, Target, PartyPopper, MessagesSquare, ShoppingBag, BarChart3,
-  Bot, Bell, Settings, type LucideIcon,
+  Bot, Bell, Settings, LifeBuoy, UserCircle, type LucideIcon,
 } from "lucide-react";
 import type { Section } from "@/lib/rbac";
 
@@ -24,5 +24,7 @@ export const NAV: { section: Section; label: string; icon: LucideIcon; href: str
   { section: "analytics", label: "Analytics", icon: BarChart3, href: "/analytics" },
   { section: "ai", label: "AI Assistant", icon: Bot, href: "/ai" },
   { section: "notifications", label: "Notifications", icon: Bell, href: "/notifications" },
+  { section: "support", label: "Support", icon: LifeBuoy, href: "/support" },
   { section: "settings", label: "Settings", icon: Settings, href: "/settings" },
+  { section: "profile", label: "Profile", icon: UserCircle, href: "/profile" },
 ];

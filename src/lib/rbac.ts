@@ -13,22 +13,22 @@ export const ROLE_LABEL: Record<Role, string> = {
 export type Section =
   | "dashboard" | "bookings" | "calendar" | "members" | "companies" | "memberships"
   | "locations" | "resources" | "payments" | "invoices" | "visitors" | "crm"
-  | "events" | "community" | "services" | "analytics" | "ai" | "notifications" | "settings";
+  | "events" | "community" | "services" | "analytics" | "ai" | "notifications" | "settings" | "support" | "profile";
 
 const ALL: Section[] = [
   "dashboard", "bookings", "calendar", "members", "companies", "memberships", "locations", "resources",
-  "payments", "invoices", "visitors", "crm", "events", "community", "services", "analytics", "ai", "notifications", "settings",
+  "payments", "invoices", "visitors", "crm", "events", "community", "services", "analytics", "ai", "notifications", "settings", "support", "profile",
 ];
 
 export const ACCESS: Record<Role, Section[]> = {
   super_admin: ALL,
   owner: ALL,
   location_manager: ALL.filter((s) => s !== "settings"),
-  reception: ["dashboard", "bookings", "calendar", "members", "visitors", "resources", "notifications"],
-  finance: ["dashboard", "payments", "invoices", "analytics", "memberships", "notifications"],
-  community_manager: ["dashboard", "events", "community", "members", "notifications"],
-  staff: ["dashboard", "bookings", "calendar", "resources", "visitors", "notifications"],
-  member: ["dashboard", "bookings", "memberships", "payments", "invoices", "events", "community", "visitors", "ai", "notifications"],
+  reception: ["dashboard", "bookings", "calendar", "members", "visitors", "resources", "support", "notifications", "profile"],
+  finance: ["dashboard", "payments", "invoices", "analytics", "memberships", "notifications", "profile"],
+  community_manager: ["dashboard", "events", "community", "members", "notifications", "profile"],
+  staff: ["dashboard", "bookings", "calendar", "resources", "visitors", "notifications", "profile"],
+  member: ["dashboard", "bookings", "memberships", "payments", "invoices", "events", "community", "visitors", "ai", "support", "notifications", "profile"],
 };
 
 export const can = (role: Role, s: Section) => ACCESS[role].includes(s);
