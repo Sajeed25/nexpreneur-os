@@ -1,9 +1,10 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Mail, Printer } from "lucide-react";
 import { Badge, Button, Card } from "@/components/ui";
 import { confirmRazorpayPayment, createRazorpayOrder, getInvoice, onlinePaymentsEnabled, recordPayment, voidInvoice, type InvoiceDetail } from "../actions";
+import { refundPayment, sendInvoiceEmail } from "../extras";
 import { INV_LABEL, INV_TONE, displayStatus } from "@/lib/billing";
 import { rupees, todayIST } from "@/lib/booking";
 
@@ -30,6 +31,7 @@ export function InvoiceView({ id, finance, manager }: { id: string; finance: boo
   const [busy, setBusy] = React.useState(false);
   const [online, setOnline] = React.useState(false);
   const [tick, setTick] = React.useState(0);
+  const [refunding, setRefunding] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let live = true;
@@ -57,6 +59,14 @@ export function InvoiceView({ id, finance, manager }: { id: string; finance: boo
     setBusy(false);
     if (!r.ok) setError(r.error); else { setError(null); setInfo("Payment recorded."); setTick((t) => t + 1); }
   };
+  const refund = async (e: React.FormEvent<HTMLFormElement>, paymentId: string) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    setBusy(true); setInfo(null);
+    const r = await refundPayment({ paymentId, amount: Number(f.get("amount")), reason: String(f.get("reason") ?? "") });
+    setBusy(false);
+    if (!r.ok) setError(r.error); else { setError(null); setRefunding(null); setInfo("Refund recorded."); setTick((t) => t + 1); }
+  };
   const payOnline = async () => {
     setBusy(true); setError(null);
     const o = await createRazorpayOrder(i.id);
@@ -77,12 +87,21 @@ export function InvoiceView({ id, finance, manager }: { id: string; finance: boo
     const r = await voidInvoice(i.id);
     if (!r.ok) setError(r.error); else setTick((t) => t + 1);
   };
+  const email = async () => {
+    setBusy(true); setInfo(null);
+    const r = await sendInvoiceEmail(i.id);
+    setBusy(false);
+    if (!r.ok) setError(r.error); else { setError(null); setInfo(`Invoice emailed to ${d.customer.email}.`); setTick((t) => t + 1); }
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div className="no-print flex flex-wrap items-center justify-between gap-2">
         <Link href="/invoices" className="flex items-center gap-1 text-sm text-muted hover:text-fg"><ArrowLeft size={16} />Invoices</Link>
-        <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer size={16} />Print / Save as PDF</Button>
+        <div className="flex gap-2">
+          {finance && d.canEmail && <Button variant="secondary" size="sm" onClick={email} disabled={busy}><Mail size={16} />{i.emailedAt ? "Email again" : "Email invoice"}</Button>}
+          <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer size={16} />Print / Save as PDF</Button>
+        </div>
       </div>
       {error && <p role="alert" className="no-print rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
       {info && <p className="no-print rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">{info}</p>}
@@ -100,7 +119,12 @@ export function InvoiceView({ id, finance, manager }: { id: string; finance: boo
           </div>
         </div>
         <div className="grid gap-4 text-sm sm:grid-cols-3">
-          <div><p className="text-muted">Billed to</p><p className="font-medium">{d.customer.name}</p><p>{d.customer.email}</p>{i.buyerGstin && <p>GSTIN {i.buyerGstin}</p>}</div>
+          <div>
+            <p className="text-muted">Billed to</p>
+            {d.company && <p className="font-medium">{d.company.name}</p>}
+            <p className={d.company ? "" : "font-medium"}>{d.customer.name}</p><p>{d.customer.email}</p>
+            {(i.buyerGstin || d.company?.gstin) && <p>GSTIN {i.buyerGstin ?? d.company?.gstin}</p>}
+          </div>
           <div><p className="text-muted">Issued</p><p className="font-medium">{i.issueDate}</p></div>
           <div><p className="text-muted">Due</p><p className="font-medium">{i.dueDate}</p><p className="text-muted">Place of supply: {i.placeOfSupply}</p></div>
         </div>
@@ -114,6 +138,7 @@ export function InvoiceView({ id, finance, manager }: { id: string; finance: boo
         </div>
         <dl className="ml-auto max-w-xs space-y-1 text-sm">
           <div className="flex justify-between"><dt className="text-muted">Subtotal</dt><dd>{rupees(i.subtotalPaise)}</dd></div>
+          {i.discountPaise > 0 && <div className="flex justify-between"><dt className="text-muted">Discount{i.couponCode ? ` (${i.couponCode})` : ""}</dt><dd>-{rupees(i.discountPaise)}</dd></div>}
           {i.igstPaise > 0 ? <div className="flex justify-between"><dt className="text-muted">IGST</dt><dd>{rupees(i.igstPaise)}</dd></div> : <>
             <div className="flex justify-between"><dt className="text-muted">CGST</dt><dd>{rupees(i.cgstPaise)}</dd></div>
             <div className="flex justify-between"><dt className="text-muted">SGST</dt><dd>{rupees(i.sgstPaise)}</dd></div></>}
@@ -123,7 +148,24 @@ export function InvoiceView({ id, finance, manager }: { id: string; finance: boo
         </dl>
         {d.payments.length > 0 && (
           <div className="text-sm"><p className="mb-1 font-medium">Payments</p>
-            <ul className="space-y-1 text-muted">{d.payments.map((p) => <li key={p.id}>{new Date(p.at).toLocaleDateString("en-IN")} · {rupees(p.amountPaise)} · {p.method}{p.note ? ` · ${p.note}` : ""}</li>)}</ul>
+            <ul className="space-y-2">{d.payments.map((p) => {
+              const left = p.amountPaise - p.refundedPaise;
+              return (
+                <li key={p.id} className="text-muted">
+                  {new Date(p.at).toLocaleDateString("en-IN")} · {rupees(p.amountPaise)} · {p.method}{p.note ? ` · ${p.note}` : ""}
+                  {p.refundedPaise > 0 && <span className="text-red-600"> · refunded {rupees(p.refundedPaise)}</span>}
+                  {finance && left > 0 && <button onClick={() => setRefunding(refunding === p.id ? null : p.id)} className="no-print ml-2 text-accent hover:underline">Refund</button>}
+                  {refunding === p.id && (
+                    <form onSubmit={(e) => refund(e, p.id)} className="no-print mt-2 grid gap-2 rounded-xl border p-3 sm:grid-cols-[120px_1fr_auto]">
+                      <input name="amount" type="number" min="0.01" step="0.01" max={left / 100} defaultValue={left / 100} required aria-label="Refund amount in rupees" className={field + " mt-0"} />
+                      <input name="reason" maxLength={255} placeholder="Reason (optional)" aria-label="Reason" className={field + " mt-0"} />
+                      <Button type="submit" size="sm" disabled={busy}>{busy ? "Refunding…" : "Refund"}</Button>
+                      <p className="text-xs sm:col-span-3">{p.method === "razorpay" ? "This is sent back to the customer's card/UPI through Razorpay." : "Hand the money back yourself; this records it."}</p>
+                    </form>
+                  )}
+                </li>
+              );
+            })}</ul>
           </div>
         )}
       </Card>

@@ -5,6 +5,7 @@ import { db, hasDb, schema } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { todayIST } from "@/lib/booking";
+import { notify } from "@/lib/notify";
 
 const { visitorInvites, users, auditLogs } = schema;
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -73,6 +74,7 @@ export async function updateVisitor(input: z.infer<typeof act>): Promise<Result<
     if (v.status !== "invited") return { ok: false, error: v.status === "checked_in" ? `${v.name} is already checked in` : "This invitation isn't valid for check-in" };
     if (v.visitDate !== todayIST()) return { ok: false, error: `This invitation is for ${v.visitDate}, not today` };
     await db().update(visitorInvites).set({ status: "checked_in", checkedInAt: new Date() }).where(eq(visitorInvites.id, v.id));
+    await notify(db(), { org: s.org, userId: v.hostUserId, kind: "visitor", title: `${v.name} has arrived`, body: v.purpose ?? undefined, link: "/visitors" });
   } else {
     if (v.status !== "checked_in") return { ok: false, error: "This visitor isn't checked in" };
     await db().update(visitorInvites).set({ status: "checked_out", checkedOutAt: new Date() }).where(eq(visitorInvites.id, v.id));

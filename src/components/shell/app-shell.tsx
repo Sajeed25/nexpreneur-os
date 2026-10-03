@@ -2,10 +2,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Bot, ChevronDown, HelpCircle, LogOut, Moon, PanelLeft, Search, Sun } from "lucide-react";
+import { Bot, ChevronDown, HelpCircle, LogOut, Moon, PanelLeft, Search, Sun } from "lucide-react";
 import { NAV } from "./nav";
 import { Avatar } from "@/components/ui";
 import { CommandPalette } from "./command-palette";
+import { NotificationBell } from "./notification-bell";
 import { LOCATIONS } from "@/lib/demo-data";
 import { ACCESS, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
@@ -92,7 +93,7 @@ export function AppShell({ user, children }: { user: { name: string; role: Role 
               <kbd className="ml-auto hidden rounded border px-1.5 text-xs sm:block">Ctrl K</kbd>
             </button>
             <div className="ml-auto flex items-center gap-1">
-              <Link href="/notifications" aria-label="Notifications" className="grid size-10 place-items-center rounded-xl hover:bg-surface-2"><Bell size={19} /></Link>
+              <NotificationBell />
               <button aria-label="Help" onClick={() => setCmd(true)} className="hidden size-10 place-items-center rounded-xl hover:bg-surface-2 sm:grid"><HelpCircle size={19} /></button>
               <button aria-label="Toggle theme" onClick={toggleTheme} className="grid size-10 place-items-center rounded-xl hover:bg-surface-2">{dark ? <Sun size={19} /> : <Moon size={19} />}</button>
               <div className="relative">

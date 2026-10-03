@@ -2,6 +2,7 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { notify } from "@/lib/notify";
 
 // Internal payment helpers. NOT server actions: nothing here may be callable from the browser.
 const { invoices, payments } = schema;
@@ -31,6 +32,7 @@ export async function applyPayment(
     razorpayOrderId: extra.orderId ?? null, razorpayPaymentId: extra.paymentId ?? null, note: extra.note ?? null, recordedBy: s.uid,
   });
   await tx.update(invoices).set({ paidPaise: paid, status: paid >= inv.totalPaise ? "paid" : "partial" }).where(eq(invoices.id, inv.id));
+  await notify(tx, { org: s.org, userId: inv.userId, kind: "payment", title: `Payment received: ${inv.number}`, body: `₹${(amountPaise / 100).toLocaleString("en-IN")} via ${method}`, link: `/invoices/${inv.id}` });
 }
 
 /** Shared by the browser callback and the webhook. Idempotent on the Razorpay payment id. */

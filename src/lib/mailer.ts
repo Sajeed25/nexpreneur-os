@@ -14,14 +14,16 @@ export function appUrl(): string | null {
   return null;
 }
 
-export async function sendMail(to: string, subject: string, text: string, html: string) {
+export type Attachment = { filename: string; content: Buffer; cid?: string; contentType?: string };
+
+export async function sendMail(to: string, subject: string, text: string, html: string, attachments?: Attachment[]) {
   const port = Number(process.env.SMTP_PORT) || 465;
   const t = nodemailer.createTransport({
     host: process.env.SMTP_HOST, port, secure: port === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
     connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 15_000,
   });
-  await t.sendMail({ from: process.env.SMTP_FROM || `Nexpreneur OS <${process.env.SMTP_USER}>`, to, subject, text, html });
+  await t.sendMail({ from: process.env.SMTP_FROM || `Nexpreneur OS <${process.env.SMTP_USER}>`, to, subject, text, html, attachments });
 }
 
 export const resetEmail = (name: string, link: string) => ({

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, date, datetime, index, int, json, mysqlEnum, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { bigint, boolean, date, datetime, index, customType, int, json, mysqlEnum, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 import { ROLES } from "@/lib/rbac";
 
 const id = () => varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID());
@@ -39,6 +39,7 @@ export const users = mysqlTable("users", {
   emergencyPhone: varchar("emergency_phone", { length: 20 }),
   lastLoginAt: timestamp("last_login_at"),
   passwordChangedAt: datetime("password_changed_at"),
+  companyId: varchar("company_id", { length: 36 }),
   createdAt: created(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [uniqueIndex("users_email").on(t.email), index("users_org").on(t.organizationId)]);
@@ -97,6 +98,8 @@ export const memberships = mysqlTable("memberships", {
   startDate: date("start_date", { mode: "string" }).notNull(),
   renewalDate: date("renewal_date", { mode: "string" }).notNull(),
   status: mysqlEnum("status", ["active", "paused", "cancelled", "expired"]).notNull().default("active"),
+  locationId: varchar("location_id", { length: 36 }),
+  cancelledAt: datetime("cancelled_at"),
   createdAt: created(),
 }, (t) => [index("ms_org_renewal").on(t.organizationId, t.renewalDate), index("ms_user").on(t.userId)]);
 
@@ -116,6 +119,13 @@ export const invoices = mysqlTable("invoices", {
   status: mysqlEnum("status", ["unpaid", "partial", "paid", "void"]).notNull().default("unpaid"),
   placeOfSupply: varchar("place_of_supply", { length: 60 }).notNull().default("Telangana"),
   buyerGstin: varchar("buyer_gstin", { length: 20 }),
+  discountPaise: bigint("discount_paise", { mode: "number" }).notNull().default(0),
+  couponCode: varchar("coupon_code", { length: 40 }),
+  locationId: varchar("location_id", { length: 36 }),
+  companyId: varchar("company_id", { length: 36 }),
+  emailedAt: datetime("emailed_at"),
+  lastRemindedAt: datetime("last_reminded_at"),
+  reminderCount: int("reminder_count").notNull().default(0),
   createdAt: created(),
 }, (t) => [uniqueIndex("inv_org_number").on(t.organizationId, t.number), index("inv_user").on(t.userId), index("inv_org_due").on(t.organizationId, t.dueDate)]);
 
@@ -139,6 +149,7 @@ export const payments = mysqlTable("payments", {
   status: mysqlEnum("status", ["captured", "failed", "refunded"]).notNull().default("captured"),
   razorpayOrderId: varchar("razorpay_order_id", { length: 40 }),
   razorpayPaymentId: varchar("razorpay_payment_id", { length: 40 }),
+  refundedPaise: bigint("refunded_paise", { mode: "number" }).notNull().default(0),
   note: varchar("note", { length: 255 }),
   recordedBy: varchar("recorded_by", { length: 36 }),
   createdAt: created(),
@@ -165,6 +176,7 @@ export const visitorInvites = mysqlTable("visitor_invites", {
   visitTime: varchar("visit_time", { length: 5 }).notNull(),
   purpose: varchar("purpose", { length: 255 }),
   token: varchar("token", { length: 40 }).notNull(),
+  email: varchar("email", { length: 190 }),
   status: mysqlEnum("status", ["invited", "checked_in", "checked_out", "cancelled"]).notNull().default("invited"),
   checkedInAt: datetime("checked_in_at"),
   checkedOutAt: datetime("checked_out_at"),
@@ -208,6 +220,7 @@ export const events = mysqlTable("events", {
   pricePaise: bigint("price_paise", { mode: "number" }).notNull().default(0),
   organizer: varchar("organizer", { length: 120 }),
   published: boolean("published").notNull().default(false),
+  imageId: varchar("image_id", { length: 36 }),
   createdAt: created(),
 }, (t) => [index("ev_org_start").on(t.organizationId, t.startsAt)]);
 
@@ -252,6 +265,98 @@ export const passwordResets = mysqlTable("password_resets", {
   usedAt: datetime("used_at"),
   createdAt: created(),
 }, (t) => [uniqueIndex("pr_token").on(t.tokenHash), index("pr_user").on(t.userId)]);
+
+const longblob = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "longblob" });
+
+export const images = mysqlTable("images", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  mime: varchar("mime", { length: 40 }).notNull(),
+  data: longblob("data").notNull(),
+  createdAt: created(),
+}, (t) => [index("img_org").on(t.organizationId)]);
+
+export const companies = mysqlTable("companies", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  name: varchar("name", { length: 160 }).notNull(),
+  gstin: varchar("gstin", { length: 20 }),
+  billingAddress: varchar("billing_address", { length: 500 }),
+  email: varchar("email", { length: 190 }),
+  phone: varchar("phone", { length: 20 }),
+  createdAt: created(),
+  deletedAt: timestamp("deleted_at"),
+}, (t) => [index("co_org").on(t.organizationId)]);
+
+export const coupons = mysqlTable("coupons", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  code: varchar("code", { length: 40 }).notNull(),
+  kind: mysqlEnum("kind", ["percent", "fixed"]).notNull(),
+  value: int("value").notNull(), // percent (1-100) or paise
+  maxUses: int("max_uses"),
+  usedCount: int("used_count").notNull().default(0),
+  validUntil: date("valid_until", { mode: "string" }),
+  active: boolean("active").notNull().default(true),
+  createdAt: created(),
+}, (t) => [uniqueIndex("cpn_org_code").on(t.organizationId, t.code)]);
+
+export const refunds = mysqlTable("refunds", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  paymentId: varchar("payment_id", { length: 36 }).notNull(),
+  invoiceId: varchar("invoice_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  amountPaise: bigint("amount_paise", { mode: "number" }).notNull(),
+  reason: varchar("reason", { length: 255 }),
+  razorpayRefundId: varchar("razorpay_refund_id", { length: 40 }),
+  createdBy: varchar("created_by", { length: 36 }),
+  createdAt: created(),
+}, (t) => [index("rf_payment").on(t.paymentId), index("rf_org_time").on(t.organizationId, t.createdAt)]);
+
+export const services = mysqlTable("services", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  name: varchar("name", { length: 160 }).notNull(),
+  description: varchar("description", { length: 1000 }),
+  pricePaise: bigint("price_paise", { mode: "number" }).notNull(),
+  taxPct: int("tax_pct").notNull().default(18),
+  available: boolean("available").notNull().default(true),
+  imageId: varchar("image_id", { length: 36 }),
+  createdAt: created(),
+  deletedAt: timestamp("deleted_at"),
+}, (t) => [index("svc_org").on(t.organizationId)]);
+
+export const serviceOrders = mysqlTable("service_orders", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  serviceId: varchar("service_id", { length: 36 }).notNull(),
+  qty: int("qty").notNull().default(1),
+  invoiceId: varchar("invoice_id", { length: 36 }),
+  createdAt: created(),
+}, (t) => [index("so_org_time").on(t.organizationId, t.createdAt), index("so_user").on(t.userId)]);
+
+export const notifications = mysqlTable("notifications", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  kind: varchar("kind", { length: 30 }).notNull(),
+  title: varchar("title", { length: 160 }).notNull(),
+  body: varchar("body", { length: 500 }),
+  link: varchar("link", { length: 200 }),
+  readAt: datetime("read_at"),
+  createdAt: created(),
+}, (t) => [index("nt_user_read").on(t.userId, t.readAt, t.createdAt)]);
+
+export const loginTokens = mysqlTable("login_tokens", {
+  id: id(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+  expiresAt: datetime("expires_at").notNull(),
+  usedAt: datetime("used_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("lt_token").on(t.tokenHash), index("lt_user").on(t.userId)]);
 
 export const auditLogs =mysqlTable("audit_logs", {
   id: id(),

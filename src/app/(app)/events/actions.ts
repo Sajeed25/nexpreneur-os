@@ -7,6 +7,7 @@ import { can } from "@/lib/rbac";
 import { toPaise } from "@/lib/billing";
 import { istToDate, todayIST } from "@/lib/booking";
 import { issueInvoice } from "@/lib/invoicing";
+import { notify } from "@/lib/notify";
 
 const { events, eventRegistrations, users, auditLogs } = schema;
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -91,6 +92,7 @@ export async function registerForEvent(id: string): Promise<Result<{ invoiceId: 
       }
       if (prev) await tx.update(eventRegistrations).set({ status: "registered", invoiceId }).where(eq(eventRegistrations.id, prev.id));
       else await tx.insert(eventRegistrations).values({ eventId: e.id, userId: s.uid, invoiceId });
+      await notify(tx, { org: s.org, userId: s.uid, kind: "event", title: `You're registered: ${e.title}`, link: "/events" });
       return { ok: true as const, data: { invoiceId } };
     });
   } catch (e) {

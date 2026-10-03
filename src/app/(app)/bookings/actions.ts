@@ -4,7 +4,8 @@ import { z } from "zod";
 import { db, hasDb, schema } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
-import { CITY, CLOSE_HOUR, OPEN_HOUR, istToDate, price, type Kind } from "@/lib/booking";
+import { CITY, CLOSE_HOUR, OPEN_HOUR, fmtIST, istToDate, price, rupees, type Kind } from "@/lib/booking";
+import { notify } from "@/lib/notify";
 
 const { resources, bookings, locations, users, auditLogs } = schema;
 
@@ -137,6 +138,7 @@ export async function createBooking(input: z.infer<typeof create>): Promise<Resu
         startsAt: w.start, endsAt: w.end, status: "confirmed", subtotalPaise: pr.subtotal, taxPaise: pr.tax, totalPaise: pr.total,
       });
       await tx.insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: "booking.create", entity: "booking", entityId: id });
+      await notify(tx, { org: s.org, userId: s.uid, kind: "booking", title: `Booking confirmed: ${r.name}`, body: `${fmtIST(w.start.toISOString(), { weekday: "short", day: "numeric", month: "short" })}, ${fmtIST(w.start.toISOString(), { hour: "numeric", minute: "2-digit" })} to ${fmtIST(w.end.toISOString(), { hour: "numeric", minute: "2-digit" })} · ${rupees(pr.total)}`, link: "/bookings" });
       return { ok: true as const, data: { id, total: pr.total } };
     });
   } catch (e) {
@@ -155,6 +157,7 @@ export async function cancelBooking(id: string): Promise<Result<null>> {
   if (b.status !== "confirmed" && b.status !== "pending") return { ok: false, error: "This booking can't be cancelled" };
   await db().update(bookings).set({ status: "cancelled" }).where(eq(bookings.id, id));
   await db().insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: "booking.cancel", entity: "booking", entityId: id });
+  await notify(db(), { org: s.org, userId: b.userId, kind: "booking", title: "Booking cancelled", body: s.uid === b.userId ? undefined : "Cancelled by the front desk.", link: "/bookings" });
   return { ok: true, data: null };
 }
 

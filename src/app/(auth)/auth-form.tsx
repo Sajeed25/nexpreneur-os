@@ -3,24 +3,28 @@ import * as React from "react";
 import Link from "next/link";
 import { Button, Input } from "@/components/ui";
 import { ROLES, ROLE_LABEL } from "@/lib/rbac";
-import { forgotPassword, register, resetPassword, signIn, type FormState } from "./actions";
+import { consumeMagic, forgotPassword, register, requestMagic, resetPassword, signIn, type FormState } from "./actions";
 
-type Kind = "login" | "register" | "forgot" | "reset";
+type Kind = "login" | "register" | "forgot" | "reset" | "magic" | "magicUse";
 const CFG = {
   login: { action: signIn, cta: "Sign in" },
   register: { action: register, cta: "Create account" },
   forgot: { action: forgotPassword, cta: "Send reset link" },
   reset: { action: resetPassword, cta: "Update password" },
+  magic: { action: requestMagic, cta: "Email me a link" },
+  magicUse: { action: consumeMagic, cta: "Sign in" },
 } as const;
 
-export function AuthForm({ kind, demo = false, token }: { kind: Kind; demo?: boolean; token?: string }) {
+const btn = "inline-flex h-11 items-center justify-center rounded-xl border bg-surface px-4 text-[15px] font-medium";
+
+export function AuthForm({ kind, demo = false, token, magic = false, google = false }: { kind: Kind; demo?: boolean; token?: string; magic?: boolean; google?: boolean }) {
   const [state, act, pending] = React.useActionState<FormState, FormData>(CFG[kind].action, {});
   return (
     <form action={act} className="space-y-4" noValidate>
-      {kind === "reset" && <input type="hidden" name="token" value={token ?? ""} />}
+      {(kind === "reset" || kind === "magicUse") && <input type="hidden" name="token" value={token ?? ""} />}
       {kind === "register" && <Input name="name" label="Full name" autoComplete="name" />}
-      {kind !== "reset" && <Input name="email" type="email" label="Email" autoComplete="email" placeholder="you@company.in" />}
-      {kind !== "forgot" && <Input name="password" type="password" label={kind === "reset" ? "New password" : "Password"} autoComplete={kind === "login" ? "current-password" : "new-password"} />}
+      {kind !== "reset" && kind !== "magicUse" && <Input name="email" type="email" label="Email" autoComplete="email" placeholder="you@company.in" />}
+      {kind !== "forgot" && kind !== "magic" && kind !== "magicUse" && <Input name="password" type="password" label={kind === "reset" ? "New password" : "Password"} autoComplete={kind === "login" ? "current-password" : "new-password"} />}
       {kind === "reset" && <Input name="confirm" type="password" label="Confirm password" autoComplete="new-password" />}
       {kind === "login" && (
         <>
@@ -40,8 +44,9 @@ export function AuthForm({ kind, demo = false, token }: { kind: Kind; demo?: boo
       <Button type="submit" disabled={pending} className="w-full">{pending ? "Please wait…" : CFG[kind].cta}</Button>
       {kind === "login" && (
         <div className="grid grid-cols-2 gap-3">
-          <Button type="button" variant="secondary" disabled title="Coming soon">Magic link · Soon</Button>
-          <Button type="button" variant="secondary" disabled title="Coming soon">Google · Soon</Button>
+          {magic ? <Link href="/magic-link" className={btn}>Email me a link</Link> : <Button type="button" variant="secondary" disabled title="Needs email (SMTP) to be set up">Email link</Button>}
+          {/* A plain link, not a fetch: the browser must follow the redirect to Google. */}
+          {google ? <a href="/api/auth/google" className={btn}>Google</a> : <Button type="button" variant="secondary" disabled title="Needs Google keys to be set up">Google</Button>}
         </div>
       )}
     </form>

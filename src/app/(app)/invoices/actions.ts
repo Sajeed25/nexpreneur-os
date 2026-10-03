@@ -7,10 +7,12 @@ import { getSession, type Session } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { CYCLE_MONTHS, addMonths, gst, invoiceNumber, isFinance, isManager, toPaise, SELLER_STATE, type Line } from "@/lib/billing";
 import { todayIST } from "@/lib/booking";
-import { issueInvoice } from "@/lib/invoicing";
+import { CouponError, issueInvoice } from "@/lib/invoicing";
+import { emailInvoice } from "@/lib/invoice-mail";
+import { smtpConfigured } from "@/lib/mailer";
 import { applyPayment, rzpAuth, rzpKeys, recordRazorpay, safeEq, type Tx } from "@/lib/payments-server";
 
-const { users, membershipPlans, memberships, invoices, invoiceItems, payments, organizations, auditLogs } = schema;
+const { users, membershipPlans, memberships, invoices, invoiceItems, payments, organizations, auditLogs, companies, refunds, locations } = schema;
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 const NO_ACCESS = "Connect the database and sign in with a real account to use billing.";
@@ -70,7 +72,10 @@ export async function listMemberships(): Promise<Result<MembershipDTO[]>> {
   return { ok: true, data: rows.map(({ m, p, u }) => ({ id: m.id, userId: u.id, who: u.name, plan: p.name, startDate: m.startDate, renewalDate: m.renewalDate, status: m.status })) };
 }
 
-const assignIn = z.object({ userId: z.string().uuid(), planId: z.string().uuid(), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) });
+const assignIn = z.object({
+  userId: z.string().uuid(), planId: z.string().uuid(), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  locationId: z.string().uuid().optional(), couponCode: z.string().trim().max(40).optional(), email: z.boolean().optional(),
+});
 /** Starts a membership and issues its first invoice (plan price + 18% GST), in one transaction. */
 export async function assignMembership(input: z.infer<typeof assignIn>): Promise<Result<{ invoiceId: string }>> {
   const s = await ctx("memberships");
@@ -84,13 +89,22 @@ export async function assignMembership(input: z.infer<typeof assignIn>): Promise
       const [member] = await tx.select().from(users).where(and(eq(users.id, p.data.userId), eq(users.organizationId, s.org)));
       if (!plan || !member) throw new Error("NOT_FOUND");
       const renewal = addMonths(p.data.startDate, CYCLE_MONTHS[plan.billingCycle] ?? 1);
-      await tx.insert(memberships).values({ organizationId: s.org, userId: member.id, planId: plan.id, startDate: p.data.startDate, renewalDate: renewal });
-      return issueInvoice(tx, s, member.id, [{ description: `${plan.name} membership (${p.data.startDate} to ${renewal})`, qty: 1, unitPaise: plan.pricePaise, taxPct: 18 }], p.data.startDate, false, null);
+      const locationId = await resolveLocation(tx, s.org, p.data.locationId);
+      await tx.insert(memberships).values({ organizationId: s.org, userId: member.id, planId: plan.id, startDate: p.data.startDate, renewalDate: renewal, locationId });
+      return issueInvoice(tx, s, member.id, [{ description: `${plan.name} membership (${p.data.startDate} to ${renewal})`, qty: 1, unitPaise: plan.pricePaise, taxPct: 18 }], p.data.startDate, false, null, 7, { couponCode: p.data.couponCode || null, locationId });
     });
+    if (p.data.email) await emailInvoice(s.org, invoiceId);
     return { ok: true, data: { invoiceId } };
   } catch (e) {
+    if (e instanceof CouponError) return fail(e.message);
     return fail((e as Error).message === "NOT_FOUND" ? "Member or plan not found" : "Couldn't assign the membership");
   }
+}
+
+/** The chosen location if it belongs to this organisation, otherwise the organisation's first location. */
+async function resolveLocation(tx: Tx, org: string, wanted?: string) {
+  const rows = await tx.select({ id: locations.id }).from(locations).where(and(eq(locations.organizationId, org), isNull(locations.deletedAt))).orderBy(locations.createdAt);
+  return rows.find((r) => r.id === wanted)?.id ?? rows[0]?.id ?? null;
 }
 
 // ---------- Invoices ----------
@@ -113,6 +127,7 @@ const invoiceIn = z.object({
   userId: z.string().uuid(), lines: z.array(lineIn).min(1).max(30), interstate: z.boolean(),
   buyerGstin: z.string().trim().toUpperCase().regex(/^[0-9A-Z]{15}$/, "GSTIN must be 15 characters").optional().or(z.literal("")),
   dueInDays: z.number().int().min(0).max(120),
+  couponCode: z.string().trim().max(40).optional(), locationId: z.string().uuid().optional(), companyId: z.string().uuid().optional(), email: z.boolean().optional(),
 });
 export async function createInvoice(input: z.infer<typeof invoiceIn>): Promise<Result<{ id: string }>> {
   const s = await ctx("invoices");
@@ -125,17 +140,28 @@ export async function createInvoice(input: z.infer<typeof invoiceIn>): Promise<R
       const [m] = await tx.select({ id: users.id }).from(users).where(and(eq(users.id, p.data.userId), eq(users.organizationId, s.org)));
       if (!m) throw new Error("NOT_FOUND");
       const lines: Line[] = p.data.lines.map((l) => ({ description: l.description, qty: l.qty, unitPaise: toPaise(l.price), taxPct: l.taxPct }));
-      return issueInvoice(tx, s, m.id, lines, todayIST(), p.data.interstate, p.data.buyerGstin || null, p.data.dueInDays);
+      let companyId: string | null = null, gstin = p.data.buyerGstin || null;
+      if (p.data.companyId) {
+        const [co] = await tx.select().from(companies).where(and(eq(companies.id, p.data.companyId), eq(companies.organizationId, s.org), isNull(companies.deletedAt)));
+        if (!co) throw new Error("COMPANY");
+        companyId = co.id; gstin = gstin ?? co.gstin;
+      }
+      const locationId = await resolveLocation(tx, s.org, p.data.locationId);
+      return issueInvoice(tx, s, m.id, lines, todayIST(), p.data.interstate, gstin, p.data.dueInDays, { couponCode: p.data.couponCode || null, locationId, companyId });
     });
+    if (p.data.email) await emailInvoice(s.org, id);
     return { ok: true, data: { id } };
   } catch (e) {
-    return fail((e as Error).message === "NOT_FOUND" ? "Member not found" : "Couldn't create the invoice");
+    if (e instanceof CouponError) return fail(e.message);
+    const m = (e as Error).message;
+    return fail(m === "NOT_FOUND" ? "Member not found" : m === "COMPANY" ? "Company not found" : "Couldn't create the invoice");
   }
 }
 
 export type InvoiceDetail = {
   invoice: typeof invoices.$inferSelect; customer: { name: string; email: string };
-  items: (typeof invoiceItems.$inferSelect)[]; payments: { id: string; amountPaise: number; method: string; status: string; note: string | null; at: string }[];
+  items: (typeof invoiceItems.$inferSelect)[]; company: { name: string; gstin: string } | null; canEmail: boolean;
+  payments: { id: string; amountPaise: number; refundedPaise: number; method: string; status: string; note: string | null; at: string }[];
   seller: { name: string; gstin: string };
 };
 export async function getInvoice(id: string): Promise<Result<InvoiceDetail>> {
@@ -146,9 +172,11 @@ export async function getInvoice(id: string): Promise<Result<InvoiceDetail>> {
   if (!row || (!isFinance(s.role) && row.i.userId !== s.uid)) return fail("Invoice not found");
   const items = await db().select().from(invoiceItems).where(eq(invoiceItems.invoiceId, id));
   const pays = await db().select().from(payments).where(eq(payments.invoiceId, id)).orderBy(payments.createdAt);
+  const [co] = row.i.companyId ? await db().select().from(companies).where(and(eq(companies.id, row.i.companyId), eq(companies.organizationId, s.org))) : [];
   return { ok: true, data: {
-    invoice: row.i, customer: { name: row.u.name, email: row.u.email }, items,
-    payments: pays.map((x) => ({ id: x.id, amountPaise: x.amountPaise, method: x.method, status: x.status, note: x.note, at: x.createdAt.toISOString() })),
+    invoice: row.i, customer: { name: row.u.name, email: row.u.email }, items, canEmail: smtpConfigured(),
+    company: co ? { name: co.name, gstin: co.gstin ?? "" } : null,
+    payments: pays.map((x) => ({ id: x.id, amountPaise: x.amountPaise, refundedPaise: x.refundedPaise, method: x.method, status: x.status, note: x.note, at: x.createdAt.toISOString() })),
     seller: { name: process.env.SELLER_NAME ?? "Nexpreneur", gstin: process.env.SELLER_GSTIN ?? "" },
   } };
 }

@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import type { Role } from "@/lib/rbac";
 import { hashToken, newResetToken, RESET_TTL_MS } from "@/lib/reset-token";
 import { appUrl, resetEmail, sendMail } from "@/lib/mailer";
+import { magicLinkEmail } from "@/lib/emails";
 
 // Loaded lazily (dynamic import) by the auth actions so the DB driver and hashing
 // libraries are never evaluated just to render the login/register pages.
@@ -81,4 +82,49 @@ export async function completePasswordReset(token: string, newPassword: string):
     await tx.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.password_reset", entity: "user", entityId: u.id });
     return true;
   });
+}
+const MAGIC_TTL_MS = 15 * 60_000;
+
+/** Emails a single-use sign-in link to an existing, active account. Silent for unknown emails. */
+export async function requestMagicLink(email: string): Promise<void> {
+  const base = appUrl();
+  if (!base) throw new Error("AUTH_URL_NOT_SET");
+  const d = db();
+  const [u] = await d.select().from(schema.users).where(and(eq(schema.users.email, email), isNull(schema.users.deletedAt))).limit(1);
+  if (!u) return;
+  const { token, hash } = newResetToken();
+  await d.insert(schema.loginTokens).values({ userId: u.id, tokenHash: hash, expiresAt: new Date(Date.now() + MAGIC_TTL_MS) });
+  const mail = magicLinkEmail(u.name, `${base}/magic?token=${token}`);
+  await sendMail(u.email, mail.subject, mail.text, mail.html);
+}
+
+/** Burns the token and returns the user to sign in, or null if it's invalid, used or expired. */
+export async function consumeMagicLink(token: string): Promise<U | null> {
+  const hash = hashToken(token);
+  return db().transaction(async (tx) => {
+    const [r] = await tx.select().from(schema.loginTokens)
+      .where(and(eq(schema.loginTokens.tokenHash, hash), isNull(schema.loginTokens.usedAt), gt(schema.loginTokens.expiresAt, new Date()))).for("update");
+    if (!r) return null;
+    const [u] = await tx.select().from(schema.users).where(and(eq(schema.users.id, r.userId), isNull(schema.users.deletedAt)));
+    if (!u) return null;
+    await tx.update(schema.loginTokens).set({ usedAt: new Date() }).where(eq(schema.loginTokens.id, r.id));
+    await tx.update(schema.users).set({ lastLoginAt: sql`CURRENT_TIMESTAMP` }).where(eq(schema.users.id, u.id));
+    await tx.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.magic_login", entity: "user", entityId: u.id });
+    return { uid: u.id, org: u.organizationId, name: u.name, email: u.email, role: u.role };
+  });
+}
+
+/** Google sign-in: an existing account with the same verified email, or a new member account. */
+export async function findOrCreateGoogleUser(email: string, name: string): Promise<U> {
+  const d = db();
+  const [u] = await d.select().from(schema.users).where(and(eq(schema.users.email, email), isNull(schema.users.deletedAt))).limit(1);
+  if (u) {
+    await d.update(schema.users).set({ lastLoginAt: sql`CURRENT_TIMESTAMP` }).where(eq(schema.users.id, u.id));
+    await d.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.google_login", entity: "user", entityId: u.id });
+    return { uid: u.id, org: u.organizationId, name: u.name, email: u.email, role: u.role };
+  }
+  const display = (name || email.split("@")[0]).slice(0, 160);
+  // Random password: this account signs in with Google, or sets a password through "Forgot password".
+  const c = await createAccount(display, email, crypto.randomUUID() + crypto.randomUUID());
+  return { uid: c.uid, org: c.org, name: display, email, role: c.role };
 }

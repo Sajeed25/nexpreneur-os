@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db, hasDb, schema } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
+import { notify } from "@/lib/notify";
 
 const { supportTickets, users, auditLogs } = schema;
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -45,5 +46,6 @@ export async function closeTicket(id: string): Promise<Result<null>> {
   // Staff can close any ticket; a member can close their own.
   if (!STAFF.includes(s.role) && t.userId !== s.uid) return { ok: false, error: "You can't close this ticket" };
   await db().update(supportTickets).set({ status: "closed", closedAt: new Date() }).where(eq(supportTickets.id, id));
+  if (t.userId !== s.uid) await notify(db(), { org: s.org, userId: t.userId, kind: "support", title: `Your request was closed: ${t.subject}`, link: "/support" });
   return { ok: true, data: null };
 }

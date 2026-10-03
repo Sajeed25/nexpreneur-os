@@ -5,14 +5,9 @@ import { z } from "zod";
 import { COOKIE, authConfigured, cookieOptions, signSession, throttled } from "@/lib/auth";
 import { hasDb } from "@/lib/db/config";
 import { isRole, type Role } from "@/lib/rbac";
+import { HOME } from "@/lib/home";
 
 export type FormState = { error?: string; ok?: string };
-
-const HOME: Record<Role, string> = {
-  super_admin: "/dashboard", owner: "/dashboard", location_manager: "/dashboard",
-  reception: "/visitors", finance: "/invoices", community_manager: "/community",
-  staff: "/bookings", member: "/dashboard",
-};
 
 const email = z.string().trim().toLowerCase().email("Enter a valid email").max(190);
 const password = z.string().min(8, "Password must be at least 8 characters").max(72);
@@ -122,4 +117,38 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
   }
   if (!ok) return { error: "This reset link is invalid or has expired. Request a new one." };
   redirect("/login?reset=1");
+}
+
+const MAGIC_SENT = "If an account exists for that email, we've sent a sign-in link. It works once and expires in 15 minutes.";
+
+export async function requestMagic(_: FormState, fd: FormData): Promise<FormState> {
+  const p = email.safeParse(fd.get("email"));
+  if (!p.success) return { error: p.error.issues[0].message };
+  if (!hasDb()) return { error: "The database isn't connected yet." };
+  const { smtpConfigured, appUrl } = await import("@/lib/mailer");
+  if (!smtpConfigured() || !appUrl()) return { error: "Email sign-in isn't set up yet. Use your password instead." };
+  if (throttled(`magic:${await clientKey()}`, 5, 15 * 60_000) || throttled(`magic:${p.data}`, 3, 15 * 60_000)) return { error: "Too many requests. Try again in a few minutes." };
+  try {
+    await (await import("@/lib/auth-service")).requestMagicLink(p.data);
+  } catch (e) {
+    console.error("magic link request failed", e); // same reply either way
+  }
+  return { ok: MAGIC_SENT };
+}
+
+/** Called by the "Sign in" button on /magic (a POST, so email-link scanners that merely fetch the URL can't burn the token). */
+export async function consumeMagic(_: FormState, fd: FormData): Promise<FormState> {
+  const t = z.string().min(20).max(100).safeParse(fd.get("token"));
+  if (!t.success) return { error: "This sign-in link is invalid." };
+  if (!hasDb() || !authConfigured()) return { error: CONFIG_ERR };
+  if (throttled(`magicuse:${await clientKey()}`, 10, 15 * 60_000)) return { error: "Too many attempts. Try again in a few minutes." };
+  let user;
+  try {
+    user = await (await import("@/lib/auth-service")).consumeMagicLink(t.data);
+  } catch (e) {
+    console.error("magic link failed", e);
+    return { error: `Couldn't sign in (code: ${tag(e)}). Please try again.` };
+  }
+  if (!user) return { error: "This sign-in link is invalid or has expired. Request a new one." };
+  return start(user);
 }

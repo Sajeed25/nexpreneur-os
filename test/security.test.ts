@@ -83,3 +83,45 @@ describe("reset link base URL", () => {
     } finally { process.env.AUTH_URL = old; }
   });
 });
+
+import { decodeJwtPayload, newPkce, signBlob, validGoogleClaims, verifyBlob } from "@/lib/oauth";
+import { esc } from "@/lib/emails";
+
+describe("Google sign-in checks", () => {
+  const ok = { iss: "https://accounts.google.com", aud: "cid", exp: 2_000_000_000, email: "a@b.in", email_verified: true };
+  it("accepts a good token and rejects bad claims", () => {
+    expect(validGoogleClaims(ok, "cid", 1_900_000_000)).toBe(true);
+    expect(validGoogleClaims({ ...ok, aud: "other" }, "cid", 1_900_000_000)).toBe(false);
+    expect(validGoogleClaims({ ...ok, iss: "https://evil.test" }, "cid", 1_900_000_000)).toBe(false);
+    expect(validGoogleClaims({ ...ok, exp: 1_800_000_000 }, "cid", 1_900_000_000)).toBe(false);
+    expect(validGoogleClaims({ ...ok, email_verified: false }, "cid", 1_900_000_000)).toBe(false);
+    expect(validGoogleClaims({ ...ok, email: undefined }, "cid", 1_900_000_000)).toBe(false);
+  });
+  it("decodes a JWT payload and survives junk", () => {
+    const jwt = `h.${Buffer.from(JSON.stringify({ email: "x@y.in" })).toString("base64url")}.s`;
+    expect(decodeJwtPayload(jwt)?.email).toBe("x@y.in");
+    expect(decodeJwtPayload("nonsense")).toBeNull();
+  });
+  it("signs the state cookie so it can't be forged or replayed after expiry", () => {
+    const t = signBlob({ state: "s1", verifier: "v1" });
+    expect(verifyBlob<{ state: string }>(t)?.state).toBe("s1");
+    const [b, sig] = t.split(".");
+    const forged = Buffer.from(JSON.stringify({ state: "evil", verifier: "v1", exp: Date.now() + 1e6 })).toString("base64url");
+    expect(verifyBlob(`${forged}.${sig}`)).toBeNull();
+    expect(verifyBlob(signBlob({ state: "s" }, -1))).toBeNull();
+    expect(verifyBlob(undefined)).toBeNull();
+    void b;
+  });
+  it("makes distinct PKCE values", () => {
+    const a = newPkce(), b = newPkce();
+    expect(a.state).not.toBe(b.state);
+    expect(a.challenge).not.toBe(a.verifier);
+  });
+});
+
+describe("email HTML escaping", () => {
+  it("neutralises markup from user-supplied names", () => {
+    expect(esc(`<img src=x onerror="alert(1)">&'`)).toBe("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;");
+    expect(esc(null)).toBe("");
+  });
+});
