@@ -32,3 +32,5 @@ Phase 4 DB step: import db/mysql-0003-billing.sql. Razorpay webhook: https://<do
 Phase 5 DB step: import db/mysql-0004-portal.sql (adds profile columns to users + support_tickets).
 
 Phase 6 DB step: select the database in phpMyAdmin, then import db/mysql-0005-phase6.sql (visitors, CRM, events, community).
+
+Phase 8: set OPENAI_API_KEY (and optionally OPENAI_MODEL) in the host environment variables. The assistant only proposes bookings/cancellations; the user must confirm.

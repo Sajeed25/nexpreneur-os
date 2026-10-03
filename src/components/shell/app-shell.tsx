@@ -2,7 +2,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, HelpCircle, LogOut, Moon, PanelLeft, Search, Sun } from "lucide-react";
+import { Bell, Bot, ChevronDown, HelpCircle, LogOut, Moon, PanelLeft, Search, Sun } from "lucide-react";
 import { NAV } from "./nav";
 import { Avatar } from "@/components/ui";
 import { CommandPalette } from "./command-palette";
@@ -122,6 +122,9 @@ export function AppShell({ user, children }: { user: { name: string; role: Role 
             );
           })}
         </nav>
+        {ACCESS[user.role].includes("ai") && !pathname.startsWith("/ai") && (
+          <Link href="/ai" aria-label="Open AI assistant" className="fixed bottom-20 right-4 z-30 grid size-12 place-items-center rounded-full bg-accent text-accent-fg shadow-soft transition hover:scale-105 md:bottom-6 md:right-6"><Bot size={22} /></Link>
+        )}
         <CommandPalette open={cmd} onClose={() => setCmd(false)} items={items} go={(h) => { setCmd(false); router.push(h); }} />
       </div>
     </LocationCtx.Provider>
