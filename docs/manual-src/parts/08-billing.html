@@ -3,6 +3,8 @@
 
 <h2 id="s11-1">11.1 The invoice list</h2>
 <div class="path">Sidebar <i>&rsaquo;</i> Invoices</div>
+<figure class="shot"><img src="shots/invoices.jpg" alt="The invoice list"><figcaption><span class="cap">The invoice list</span><b class="n">1</b> New invoice &nbsp; <b class="n">2</b> Click an invoice number to open it &nbsp; <b class="n">3</b> Payment status</figcaption></figure>
+
 <p>Finance roles and managers see every invoice. Members and community managers see only their own. Columns: invoice number, customer, date, due date, total, balance and status.</p>
 <table class="data"><thead><tr><th style="width:20%">Status</th><th>Meaning</th></tr></thead><tbody>
 <tr><td><span class="pill o">Unpaid</span></td><td>Nothing paid yet and not past its due date.</td></tr>
@@ -53,8 +55,8 @@
 
 <h2 id="s11-4">11.4 The invoice page</h2>
 <p>Click an invoice number. You see a printable <b>Tax Invoice</b> and, below it, actions for your role.</p>
-<figure><div class="frame"><div class="bar"><i></i><i></i><i></i>&nbsp; Invoices &rsaquo; INV-2026-0001</div><div class="body inv">
-<div class="hd"><div><b style="font-size:12pt">Tax Invoice</b><br><span class="small">INV-2026-0001</span></div><div style="text-align:right"><b>Nexpreneur</b><br><span class="small">GSTIN 36AAAAA0000A1Z5</span><br><span class="pill o">Unpaid</span></div></div>
+<figure><div class="frame"><div class="bar"><i></i><i></i><i></i>&nbsp; Invoices &rsaquo; INV-2026-0231</div><div class="body inv">
+<div class="hd"><div><b style="font-size:12pt">Tax Invoice</b><br><span class="small">INV-2026-0231</span></div><div style="text-align:right"><b>Nexpreneur</b><br><span class="small">GSTIN 36AAAAA0000A1Z5</span><br><span class="pill o">Unpaid</span></div></div>
 <div class="three" style="margin-bottom:5pt"><div><span class="small">Billed to</span><br><b>Zenith Labs Pvt Ltd</b><br>Aarav Reddy<br>aarav@zenithlabs.example</div><div><span class="small">Issued</span><br><b>2026-10-05</b></div><div><span class="small">Due</span><br><b>2026-10-12</b><br><span class="small">Place of supply: Telangana</span></div></div>
 <table class="data" style="margin:3pt 0"><thead><tr><th>Description</th><th>SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody><tr><td>Flexi membership (2026-10-05 to 2026-11-05)</td><td>997212</td><td class="r">1</td><td class="r">&#8377;3,999.00</td><td class="r">18%</td><td class="r">&#8377;3,999.00</td></tr></tbody></table>
 <div class="tot"><div><span>Subtotal</span><span>&#8377;3,999.00</span></div><div><span>CGST</span><span>&#8377;359.91</span></div><div><span>SGST</span><span>&#8377;359.91</span></div><div class="g"><span>Total</span><span>&#8377;4,718.82</span></div><div><span>Paid</span><span>&#8377;0.00</span></div><div class="g"><span>Balance due</span><span>&#8377;4,718.82</span></div></div>
@@ -89,7 +91,7 @@
 </ol>
 <p>The invoice moves to <span class="pill b">Part paid</span> or <span class="pill g">Paid</span> and the member gets a &ldquo;Payment received&rdquo; notification.</p>
 <div class="sample"><span class="tag">Sample data: part payments</span>
-<p>Invoice <b>INV-2026-0001</b>, total &#8377;4,718.82.</p>
+<p>Invoice <b>INV-2026-0231</b>, total &#8377;4,718.82.</p>
 <table class="data"><thead><tr><th>Date</th><th>Action</th><th class="r">Amount</th><th class="r">Balance</th><th>Status</th></tr></thead><tbody>
 <tr><td>5 Oct</td><td>Issued</td><td class="r">&mdash;</td><td class="r">&#8377;4,718.82</td><td><span class="pill o">Unpaid</span></td></tr>
 <tr><td>6 Oct</td><td>Cash at desk</td><td class="r">&#8377;2,000.00</td><td class="r">&#8377;2,718.82</td><td><span class="pill b">Part paid</span></td></tr>
@@ -135,7 +137,7 @@
 <p>Paused and cancelled memberships are skipped. Running the job twice in a day never creates duplicates.</p>
 <div class="sample"><span class="tag">Sample data: Aarav&rsquo;s timeline</span>
 <table class="data"><thead><tr><th style="width:18%">Date</th><th>What happens</th></tr></thead><tbody>
-<tr><td>5 Oct</td><td>Flexi starts. Invoice INV-2026-0001 (&#8377;4,718.82), due 12 Oct. Renewal date set to 5 Nov.</td></tr>
+<tr><td>5 Oct</td><td>Flexi starts. Invoice INV-2026-0231 (&#8377;4,718.82), due 12 Oct. Renewal date set to 5 Nov.</td></tr>
 <tr><td>2 Nov</td><td>Daily job: renewal date is 3 days away. Invoice for 5 Nov &ndash; 5 Dec issued and emailed, due 5 Nov. Renewal date becomes 5 Dec.</td></tr>
 <tr><td>3 Nov</td><td>Invoice is due within 2 days: first payment reminder (email + notification).</td></tr>
 <tr><td>6 Nov</td><td>Not paid and now overdue: second reminder (3 days after the first).</td></tr>

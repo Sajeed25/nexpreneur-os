@@ -109,3 +109,10 @@ figcaption { font-size: 8.4pt; color: var(--muted); margin-top: 3pt; text-align:
 .nobreak { break-inside: avoid; }
 .small { font-size: 8.6pt; color: var(--muted); }
 .center { text-align: center; }
+
+/* ---------- real screenshots ---------- */
+figure.shot { text-align: center; margin: 7pt 0 10pt; break-inside: avoid; }
+figure.shot img { display: block; margin: 0 auto; width: 100%; max-width: 162mm; border: 1px solid #c8d3e1; border-radius: 6px; }
+figure.shot figcaption { text-align: left; max-width: 162mm; margin: 3pt auto 0; font-size: 8.2pt; line-height: 1.35; }
+figure.shot figcaption b.n { display: inline-block; min-width: 10pt; height: 10pt; line-height: 10pt; border-radius: 5pt; background: #f15a24; color: #fff; text-align: center; font-size: 7pt; margin-right: 2pt; padding: 0 2pt; }
+figure.shot figcaption .cap { display: block; font-weight: 600; color: var(--navy); margin-bottom: 1pt; }
