@@ -3,6 +3,9 @@
 The Intelligent Operating System for Modern Coworking Spaces.
 Next.js 15 · TypeScript · Tailwind 4 · Drizzle ORM · MySQL/MariaDB · Recharts. Runs on Hostinger Node.js hosting.
 
+## Documentation
+`docs/Nexpreneur-OS-User-Manual.pdf` is the complete A4 user manual (27 chapters, sample data, troubleshooting). Its source and build script are in `docs/manual-src/`.
+
 ## Branding
 Colours from the logo: navy `#042341`, orange `#F15A24`, green `#8AC73E`. Font: Outfit (geometric rounded sans, close to the wordmark). Tokens live in `src/app/globals.css`
 (`--primary` filled buttons, `--accent` orange text/links, `--brand` pure logo orange for charts). Logo files: `public/brand/logo.png`, `public/brand/mark.png`, favicon `src/app/icon.png`.

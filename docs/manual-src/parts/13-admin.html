@@ -1,0 +1,177 @@
+<h1 class="chapter" id="ch25"><span class="num">Chapter 25</span>Administrator guide: setup and upkeep</h1>
+<p class="lead">For whoever looks after the technical side (often the owner with a little help). It explains how the application is hosted, which settings it needs, and how to switch on email, Google sign-in, online payments, the daily job and the AI Assistant.</p>
+
+<h2 id="s25-1">25.1 What the system runs on</h2>
+<table class="data"><thead><tr><th style="width:26%">Part</th><th>What it is</th></tr></thead><tbody>
+<tr><td>Application</td><td>A Next.js web application written in TypeScript, kept on GitHub (<code>Sajeed25/nexpreneur-os</code>).</td></tr>
+<tr><td>Hosting</td><td>Hostinger <b>Deploy Web App</b> (Node.js 20, Next.js preset, branch <code>main</code>). Every push to GitHub redeploys automatically.</td></tr>
+<tr><td>Database</td><td>Hostinger MySQL/MariaDB, managed with phpMyAdmin.</td></tr>
+<tr><td>Email</td><td>A Hostinger mailbox over SMTP.</td></tr>
+<tr><td>Payments</td><td>Razorpay. Sign-in with Google (optional). OpenAI for the assistant (optional).</td></tr>
+</tbody></table>
+<div class="callout"><b class="t">Note</b><p>Hostinger&rsquo;s servers use an older system library, so the application is deliberately built on <b>Next.js 15</b>. Do not upgrade to Next.js 16 on this host: the build will fail.</p></div>
+
+<h2 id="s25-2">25.2 Deploying from GitHub</h2>
+<ol class="steps">
+<li>hPanel &rsaquo; <b>Websites</b> &rsaquo; <b>Add website</b> &rsaquo; <b>Deploy Web App</b> &rsaquo; <b>Connect with GitHub</b> and choose the repository.</li>
+<li>Set: Framework <b>Next.js</b>, Branch <b>main</b>, Node <b>20.x</b>, build <code>npm run build</code>, start <code>npm start</code>.</li>
+<li>Open <b>Environment variables</b> and add the values in 25.4, then <b>Deploy</b>.</li>
+<li>When the deployment says Completed, open <code>/api/health</code>. You should see <code>{"ok":true,"service":"nexpreneur-os"}</code>.</li>
+</ol>
+
+<h2 id="s25-3">25.3 The database</h2>
+<h3>Create it</h3>
+<p>hPanel &rsaquo; <b>Databases &rsaquo; Management</b>: create a database, a user and a password. Hostinger adds a prefix, so the real names look like <code>u123456789_nexpreneurOS</code>. Use letters and numbers only in the password. Note the database name, user and host (usually <code>127.0.0.1</code>).</p>
+<h3>Connection string</h3>
+<pre>mysql://USERNAME:PASSWORD@127.0.0.1:3306/DATABASENAME</pre>
+<p>Type it yourself into the <code>DATABASE_URL</code> variable. Never paste it into chat, email or the repository.</p>
+<h3>Import the tables</h3>
+<p>In phpMyAdmin, <b>click your database in the left list first</b> (the heading must read &ldquo;Database: &hellip;&rdquo;), open <b>Import</b>, and run these files from the repository&rsquo;s <code>db</code> folder, in this order:</p>
+<table class="data"><thead><tr><th style="width:5%">#</th><th style="width:36%">File</th><th>Adds</th></tr></thead><tbody>
+<tr><td>1</td><td><code>mysql-schema.sql</code></td><td>Organisations, locations, users, plans, resources, audit log</td></tr>
+<tr><td>2</td><td><code>mysql-0002-bookings.sql</code></td><td>Bookings</td></tr>
+<tr><td>3</td><td><code>mysql-0003-billing.sql</code></td><td>Memberships, invoices, invoice lines, payments</td></tr>
+<tr><td>4</td><td><code>mysql-0006-password-reset.sql</code></td><td>Password reset links, password-change tracking</td></tr>
+<tr><td>5</td><td><code>mysql-catchup.sql</code></td><td>Everything else: support, visitors, CRM, events, community, notifications, coupons, refunds, companies, services, images, sign-in links, and new columns</td></tr>
+</tbody></table>
+<div class="callout warn"><b class="t">The most important rule</b><p><b>Update the database before deploying code that needs it.</b> Each release may add columns. If the new code runs against an old database, sign-in fails with <code>ER_BAD_FIELD_ERROR</code>. The catch-up file is written to be safe to run again on an existing database, so when in doubt, run it first.</p></div>
+<p>Afterwards the left list should show about 30 tables, including <code>users</code>, <code>locations</code>, <code>resources</code>, <code>bookings</code>, <code>invoices</code>, <code>payments</code>, <code>events</code>, <code>leads</code> and <code>notifications</code>.</p>
+
+<h2 id="s25-4">25.4 Settings the application reads</h2>
+<p>Set these under <b>Environment variables</b> in hPanel, then <b>Redeploy</b> (changes take effect only after a redeploy).</p>
+<table class="data" style="font-size:8.2pt"><thead><tr><th style="width:23%">Name</th><th style="width:12%">Needed?</th><th>What it is / what happens without it</th></tr></thead><tbody>
+<tr><td><code>DATABASE_URL</code></td><td>Yes</td><td>The connection string above. Without a valid <code>mysql://</code> value the app runs in demo mode.</td></tr>
+<tr><td><code>AUTH_SECRET</code></td><td>Yes</td><td>A random string of at least 16 characters (use 32+) that signs sign-in sessions. Too short or missing: sign-in shows &ldquo;Server setup incomplete&rdquo;. Changing it signs everyone out.</td></tr>
+<tr><td><code>AUTH_URL</code></td><td>For email links</td><td>Your exact public address with <code>https://</code> and no trailing slash, e.g. <code>https://os.nexpreneur.com</code>. Used in every emailed link and for Google sign-in.</td></tr>
+<tr><td><code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_USER</code>, <code>SMTP_PASS</code>, <code>SMTP_FROM</code></td><td>For email</td><td>Mailbox details (25.5). Without them: no emailed links, invoices, invitations or reminders; the matching buttons are disabled.</td></tr>
+<tr><td><code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code></td><td>For Google</td><td>25.6. Without them the Google button is disabled.</td></tr>
+<tr><td><code>RAZORPAY_KEY_ID</code>, <code>RAZORPAY_KEY_SECRET</code>, <code>RAZORPAY_WEBHOOK_SECRET</code></td><td>For online payment</td><td>25.7. Without them &ldquo;Pay online&rdquo; is hidden.</td></tr>
+<tr><td><code>CRON_SECRET</code></td><td>For the daily job</td><td>25.8. A random string of 16+ characters, used as the daily job&rsquo;s password.</td></tr>
+<tr><td><code>OPENAI_API_KEY</code>, <code>OPENAI_MODEL</code></td><td>For the assistant</td><td>25.9. Model defaults to <code>gpt-4o-mini</code>.</td></tr>
+<tr><td><code>SELLER_NAME</code>, <code>SELLER_GSTIN</code></td><td>Recommended</td><td>Your business name and GSTIN printed on every invoice. Default name is &ldquo;Nexpreneur&rdquo;.</td></tr>
+<tr><td><code>CSP_REPORT_ONLY</code></td><td>Rarely</td><td>Set to <code>1</code> only if a security rule blocks a payment window; the rule then logs instead of blocking.</td></tr>
+</tbody></table>
+<h3>Making a random secret</h3>
+<p>Open PowerShell (or any terminal with Node installed) and run:</p>
+<pre>node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"</pre>
+<p>Use a <b>different</b> value for <code>AUTH_SECRET</code> and for <code>CRON_SECRET</code>. Keep them private.</p>
+
+<h2 id="s25-5">25.5 Email (SMTP)</h2>
+<ol class="steps">
+<li>hPanel &rsaquo; <b>Emails</b>: create a mailbox such as <code>noreply@yourdomain.com</code>.</li>
+<li>Set <code>SMTP_HOST=smtp.hostinger.com</code>, <code>SMTP_PORT=465</code>, <code>SMTP_USER</code> = the full mailbox address, <code>SMTP_PASS</code> = its password, and <code>SMTP_FROM=Nexpreneur OS &lt;noreply@yourdomain.com&gt;</code>.</li>
+<li>Set <code>AUTH_URL</code> and redeploy.</li>
+<li>Test: use <b>Forgot password?</b> with your own email. The email should arrive within a minute (check spam the first time).</li>
+</ol>
+<p>Email powers: password reset, email sign-in links, welcome invitations, emailed invoices, renewal and reminder emails, and visitor invitations.</p>
+
+<h2 id="s25-6">25.6 Google sign-in</h2>
+<ol class="steps">
+<li>Open <b>Google Cloud Console</b> &rsaquo; <b>APIs &amp; Services</b> &rsaquo; <b>Credentials</b> &rsaquo; <b>Create credentials</b> &rsaquo; <b>OAuth client ID</b> &rsaquo; <b>Web application</b>. (If asked, first set up the OAuth consent screen with your app name.)</li>
+<li>Under <b>Authorised redirect URIs</b> add exactly: <code>https://os.nexpreneur.com/api/auth/google/callback</code></li>
+<li>Copy the <b>Client ID</b> and <b>Client secret</b> into <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code>. Redeploy.</li>
+</ol>
+<p>The Google button on the sign-in page becomes active. People whose Google email matches an existing account sign in to it; others get a new member account.</p>
+
+<h2 id="s25-7">25.7 Online payments (Razorpay)</h2>
+<ol class="steps">
+<li>In the Razorpay dashboard create <b>API keys</b>. Start with <b>Test mode</b> keys. Put <code>RAZORPAY_KEY_ID</code> and <code>RAZORPAY_KEY_SECRET</code> in the settings.</li>
+<li>Razorpay &rsaquo; <b>Webhooks</b> &rsaquo; add <code>https://os.nexpreneur.com/api/razorpay/webhook</code>, tick the event <b>payment.captured</b>, and choose a webhook secret. Put the same secret in <code>RAZORPAY_WEBHOOK_SECRET</code>. Redeploy.</li>
+<li>Pay a test invoice with Razorpay&rsquo;s test card. Confirm the invoice turns Paid.</li>
+<li>When happy, swap in <b>Live</b> keys and the live webhook.</li>
+</ol>
+
+<h2 id="s25-8">25.8 The daily job (renewals and reminders)</h2>
+<p>Hostinger&rsquo;s Node.js apps do not offer a Cron Jobs page, so use a free outside scheduler that calls your address once a day.</p>
+<ol class="steps">
+<li>Create a <b>CRON_SECRET</b> (25.4) and add it to the settings. Redeploy.</li>
+<li>Create a free account at <b>cron-job.org</b> and press <b>Create cronjob</b>.</li>
+<li><b>URL:</b> <code>https://os.nexpreneur.com/api/cron/daily</code> &nbsp; <b>Schedule:</b> every day at 07:00, time zone Asia/Kolkata &nbsp; <b>Method:</b> GET.</li>
+<li>In <b>Advanced</b> add a header: name <code>Authorization</code>, value <code>Bearer </code> followed by your secret (the word Bearer, a space, then the secret).</li>
+<li>Press <b>Test run</b>. You should get <code>{"ok":true,&hellip;}</code>.</li>
+</ol>
+<table class="data"><thead><tr><th style="width:20%">Test result</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>200 &nbsp;<code>{"ok":true,&hellip;}</code></td><td>Working.</td></tr>
+<tr><td>401 Unauthorized</td><td>The header does not match <code>CRON_SECRET</code> (check the space after &ldquo;Bearer&rdquo;).</td></tr>
+<tr><td>503 Not configured</td><td><code>CRON_SECRET</code> missing, shorter than 16 characters, or the database is not connected. Redeploy after changing settings.</td></tr>
+<tr><td>500 <code>{"ok":false,"error":"ER_&hellip;"}</code></td><td>A database problem. <code>ER_BAD_FIELD_ERROR</code> or <code>ER_NO_SUCH_TABLE</code> means run the catch-up SQL.</td></tr>
+</tbody></table>
+
+<h2 id="s25-9">25.9 The AI Assistant (OpenAI)</h2>
+<ol class="steps">
+<li>At platform.openai.com create an account, add a payment method and some credit, and create an <b>API key</b>.</li>
+<li>Put it in <code>OPENAI_API_KEY</code> (never share it). Optionally set <code>OPENAI_MODEL</code>. Redeploy.</li>
+<li>Under Billing &rsaquo; Limits set a monthly cap so costs can never surprise you.</li>
+</ol>
+
+<h2 id="s25-10">25.10 Invoice details</h2>
+<p>Set <code>SELLER_NAME</code> (for example &ldquo;Nexpreneur Technologies Pvt Ltd&rdquo;) and <code>SELLER_GSTIN</code> (your 15-character GSTIN). They appear at the top right of every invoice and in invoice emails.</p>
+
+<h2 id="s25-11">25.11 Updating the application</h2>
+<ol class="steps">
+<li>If the release notes mention new database changes, <b>run the SQL first</b> (25.3).</li>
+<li>Push the new code to GitHub. Hostinger redeploys within a few minutes.</li>
+<li>Check <code>/api/health</code>, sign in, and open one page that changed.</li>
+</ol>
+
+<h2 id="s25-12">25.12 Backups and checks</h2>
+<ul>
+<li>Hostinger makes daily backups. <b>Also export your database</b> from phpMyAdmin (<i>Export &rsaquo; Quick &rsaquo; SQL</i>) before every upgrade and keep the file somewhere safe.</li>
+<li><code>/api/health</code> is a public &ldquo;is it running&rdquo; check. When an owner is signed in, <code>/api/health?deep=1</code> additionally reports which libraries load and whether the key settings are present (never their values).</li>
+<li>Errors are written to <b>hPanel &rsaquo; your site &rsaquo; Runtime logs</b>.</li>
+</ul>
+
+<h1 class="chapter" id="ch26"><span class="num">Chapter 26</span>Troubleshooting</h1>
+<p class="lead">Most problems have a short code or message. Find it here first.</p>
+<table class="data" style="font-size:8.5pt"><thead><tr><th style="width:30%">What you see</th><th style="width:30%">Likely cause</th><th>What to do</th></tr></thead><tbody>
+<tr><td>Sign-in or any page: <code>ER_BAD_FIELD_ERROR</code></td><td>The database is missing columns the new code needs.</td><td>Run <code>mysql-catchup.sql</code> in phpMyAdmin (with the database selected), then reload.</td></tr>
+<tr><td><code>ER_NO_SUCH_TABLE</code></td><td>A table was never created.</td><td>Run the SQL files in 25.3, ending with the catch-up file.</td></tr>
+<tr><td><code>ER_ACCESS_DENIED_ERROR</code></td><td>Wrong database user or password in <code>DATABASE_URL</code>.</td><td>Re-check the full prefixed username, the password (letters/numbers only), and that the user is linked to the database. Redeploy.</td></tr>
+<tr><td>&ldquo;Server setup incomplete: AUTH_SECRET&hellip;&rdquo;</td><td><code>AUTH_SECRET</code> is missing, too short or a placeholder.</td><td>Set a random 32+ character value. Redeploy.</td></tr>
+<tr><td>&ldquo;Application error: a server-side exception&rdquo; with a number</td><td>An unexpected failure.</td><td>Open Runtime logs near that time and read the first error line. Visit <code>/api/health?deep=1</code> as owner.</td></tr>
+<tr><td>Email buttons greyed out; no emails arrive</td><td>SMTP or <code>AUTH_URL</code> not set, or wrong password.</td><td>Complete 25.5. Test with Forgot password. Check spam and Runtime logs.</td></tr>
+<tr><td>Google: &ldquo;redirect_uri_mismatch&rdquo; or &ldquo;Google sign-in didn&rsquo;t work&rdquo;</td><td>The redirect address in Google Cloud differs from yours.</td><td>It must be exactly <code>https://os.nexpreneur.com/api/auth/google/callback</code>. Check <code>AUTH_URL</code> too.</td></tr>
+<tr><td>Razorpay window does not open</td><td>Keys missing, or a browser extension blocks it.</td><td>Confirm both keys are set and redeployed. Try a private window. If still blocked set <code>CSP_REPORT_ONLY=1</code> temporarily.</td></tr>
+<tr><td>Invoice stays unpaid after online payment</td><td>Webhook not set up or wrong secret.</td><td>Check the webhook address and that <code>RAZORPAY_WEBHOOK_SECRET</code> matches Razorpay&rsquo;s.</td></tr>
+<tr><td>Assistant: <code>OPENAI_429</code></td><td>OpenAI account out of credit or rate-limited.</td><td>Add credit at platform.openai.com &rsaquo; Billing; wait a minute; retry.</td></tr>
+<tr><td>Assistant: <code>OPENAI_401</code> / <code>_404</code> / <code>_NETWORK</code></td><td>Bad key / unknown model / cannot reach OpenAI.</td><td>Re-enter the key; set <code>OPENAI_MODEL=gpt-4o-mini</code>; check the host&rsquo;s outbound access.</td></tr>
+<tr><td>Daily job: 401 / 503 / 500</td><td>See 25.8.</td><td>Match the header to <code>CRON_SECRET</code>; redeploy after changing it; run the catch-up SQL for 500.</td></tr>
+<tr><td>&ldquo;Sorry, that slot was just taken&rdquo;</td><td>Someone booked it a moment earlier.</td><td>Pick another time or space. This is the double-booking protection working.</td></tr>
+<tr><td>Floor map says &ldquo;No resources yet&rdquo;</td><td>None created.</td><td>Add them under Resources (chapter 6) or press <b>Add demo resources</b> (owners).</td></tr>
+<tr><td>A menu item or page is missing</td><td>Your role does not include it.</td><td>Ask an owner to check your role in Settings &rsaquo; Team &amp; roles.</td></tr>
+<tr><td>Signed out unexpectedly</td><td>Session lasts 8 hours; password changed; account deactivated; <code>AUTH_SECRET</code> changed.</td><td>Sign in again. If it keeps happening ask an owner to check your account status.</td></tr>
+<tr><td>Build fails on Hostinger mentioning swc / glibc</td><td>Next.js 16 was installed.</td><td>Stay on Next.js 15 as in 25.1.</td></tr>
+</tbody></table>
+
+<h1 class="chapter" id="ch27"><span class="num">Chapter 27</span>Security and privacy</h1>
+<p class="lead">What protects your data, in plain language, and how to keep it that way.</p>
+<h2 id="s27-1">27.1 What the system does for you</h2>
+<table class="data"><thead><tr><th style="width:26%">Area</th><th>Protection</th></tr></thead><tbody>
+<tr><td>Passwords</td><td>Stored scrambled with bcrypt; nobody, including administrators, can read them. 8 to 72 characters. Sign-in is rate-limited.</td></tr>
+<tr><td>Sessions</td><td>A signed cookie that scripts cannot read, valid 8 hours. Your role is re-read from the database on every page, so role changes and deactivations apply at once. Changing a password signs out other devices.</td></tr>
+<tr><td>Permissions</td><td>Enforced on the server for every action, not just by hiding menu items.</td></tr>
+<tr><td>Your data only</td><td>Every query is limited to your organisation.</td></tr>
+<tr><td>Money</td><td>Amounts always come from the database; online payments are verified by signature and by asking Razorpay; payments are recorded exactly once; refunds are checked against what was paid.</td></tr>
+<tr><td>Double-booking and overbooking</td><td>Bookings and event seats are locked while checked.</td></tr>
+<tr><td>Email links</td><td>One-time, stored only as a fingerprint, expire (15 min, 1 hour or 7 days) and are built from your configured address only.</td></tr>
+<tr><td>AI Assistant</td><td>Can only propose; you confirm; confirmations are signed, expire in 10 minutes and are tied to you.</td></tr>
+<tr><td>Uploads</td><td>Only JPEG, PNG and WebP up to 900 KB, checked by content, never SVG.</td></tr>
+<tr><td>Web protections</td><td>HTTPS enforced, framing blocked, content security policy, and no sniffing of file types.</td></tr>
+<tr><td>Audit trail</td><td>Important actions are recorded with who and when.</td></tr>
+</tbody></table>
+<h2 id="s27-2">27.2 What you should do</h2>
+<ul>
+<li>Give each person their own account and the <b>lowest role</b> that lets them do their job.</li>
+<li><b>Deactivate</b> people the day they leave.</li>
+<li>Never share passwords or the secrets in chapter 25. Do not paste them into chat or email.</li>
+<li>Register the owner account immediately after launch and use a strong, unique password.</li>
+<li>Keep database exports somewhere safe and test that you can restore one.</li>
+<li>Sign out on shared computers.</li>
+</ul>
+<h2 id="s27-3">27.3 What is stored about people</h2>
+<p>Name, email, phone, job title, company and emergency contact (entered by them or by staff); plan, bookings, invoices and payments; visitor names and optional contact details; community posts. The member directory shows only name, role and company. Card details are handled by Razorpay and never stored by Nexpreneur OS.</p>
+<div class="callout warn"><b class="t">Known limits</b><ul style="margin-top:2pt">
+<li>Sign-up is open: anyone with the web address can create a <b>member</b> account. Staff roles are only granted by an owner.</li>
+<li>The sign-in rate limit is kept in the server&rsquo;s memory, so it resets when the server restarts.</li>
+<li>Door access control, document storage and two-factor sign-in are not built yet.</li>
+</ul></div>

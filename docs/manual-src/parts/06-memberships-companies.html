@@ -1,0 +1,107 @@
+<h1 class="chapter" id="ch8"><span class="num">Chapter 8</span>Memberships, plans and coupons</h1>
+<p class="lead">A <b>plan</b> is what you sell (for example Flexi at &#8377;3,999 a month). A <b>membership</b> is one member being on one plan. This chapter covers both, plus discount coupons.</p>
+
+<h2 id="s8-1">8.1 Plans</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Memberships</div>
+<p>Plans appear as cards at the top of the page showing the name, price, billing cycle, benefits and (for managers) how many members are active on it. Prices are <b>before 18% GST</b>.</p>
+<div class="sample"><span class="tag">Sample data: the four starter plans</span>
+<table class="data"><thead><tr><th>Plan</th><th class="r">Price / month</th><th class="r">GST 18%</th><th class="r">Invoice total</th><th>Benefits (example)</th></tr></thead><tbody>
+<tr><td><b>Flexi</b></td><td class="r">&#8377;3,999</td><td class="r">&#8377;719.82</td><td class="r">&#8377;4,718.82</td><td>Any hot desk, 8 meeting-room hours</td></tr>
+<tr><td><b>Fixed Desk</b></td><td class="r">&#8377;4,999</td><td class="r">&#8377;899.82</td><td class="r">&#8377;5,898.82</td><td>Your own desk, lockable storage</td></tr>
+<tr><td><b>Private Office</b></td><td class="r">&#8377;19,999</td><td class="r">&#8377;3,599.82</td><td class="r">&#8377;23,598.82</td><td>Lockable office for up to 6, 20 meeting-room hours</td></tr>
+<tr><td><b>Virtual Office</b></td><td class="r">&#8377;999</td><td class="r">&#8377;179.82</td><td class="r">&#8377;1,178.82</td><td>Business address, mail handling</td></tr>
+</tbody></table></div>
+
+<h2 id="s8-2">8.2 Creating and changing plans (owners and managers)</h2>
+<h3>New plan</h3>
+<ol class="steps">
+<li>Press <b>New plan</b>.</li>
+<li>Enter the <b>plan name</b>, <b>price</b> in rupees (before GST), choose a <b>billing cycle</b> (Monthly, Quarterly or Yearly) and list <b>benefits</b>, one per line.</li>
+<li>Press <b>Create plan</b>.</li>
+</ol>
+<h3>Changing a price or benefits</h3>
+<p>On the plan card press <b>Edit price &amp; details</b>, change what you need, and <b>Save</b>.</p>
+<div class="callout warn"><b class="t">Important: what a price change affects</b><p>A new price applies to <b>invoices issued from now on</b>, including automatic renewals. <b>Invoices already issued never change.</b> People already on the plan simply pay the new price from their next renewal.</p></div>
+<h3>Archiving a plan</h3>
+<p><b>Archive</b> stops a plan being offered to new members. People already on it stay on it and keep renewing. <b>Restore</b> brings it back. Archived plans are shown faded.</p>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Create <b>Startup Desk</b> with price <b>&#8377;17,999</b> and cycle <b>Quarterly</b>. The price is for the whole cycle, so each member is invoiced &#8377;17,999 + GST every 3 months. Benefits: dedicated desk, 10 meeting-room hours, 2 visitor passes per month.</p>
+<p>Later you raise Flexi to &#8377;4,299: Aarav&rsquo;s next renewal invoice is &#8377;4,299 + GST; his October invoice (&#8377;4,718.82) stays as it was.</p></div>
+
+<h2 id="s8-3">8.3 Assigning a membership</h2>
+<div class="path">Memberships <i>&rsaquo;</i> Assign membership &nbsp;&nbsp;or&nbsp;&nbsp; Member page <i>&rsaquo;</i> Membership</div>
+<p>Owners, managers and finance can start a plan for any member.</p>
+<table class="data"><thead><tr><th style="width:22%">Field</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Member</td><td>Pick from your people.</td></tr>
+<tr><td>Plan</td><td>Shows the price next to each plan.</td></tr>
+<tr><td>Start date</td><td>Defaults to today. The renewal date is the start date plus one billing cycle.</td></tr>
+<tr><td>Location</td><td>Defaults to the location chosen in the top selector. Used for location reports.</td></tr>
+<tr><td>Coupon code</td><td>Optional (8.5).</td></tr>
+<tr><td>Email the invoice</td><td>Ticked by default. Sends the invoice to the member if email is set up.</td></tr>
+</tbody></table>
+<p>Press <b>Start membership &amp; issue invoice</b>. In one step the system creates the membership, issues invoice <i>INV-YYYY-NNNN</i> (plan price + 18% GST, due in 7 days) and tells the member through a notification.</p>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Member <b>Aarav Reddy</b> &middot; Plan <b>Flexi</b> &middot; Start <b>5 Oct 2026</b> &middot; Location Hyderabad.</p>
+<ul><li>Renewal date: <b>5 Nov 2026</b></li><li>Invoice <b>INV-2026-0001</b>: &#8377;3,999.00 + CGST &#8377;359.91 + SGST &#8377;359.91 = <b>&#8377;4,718.82</b>, due <b>12 Oct 2026</b></li></ul></div>
+<div class="callout"><b class="t">Month-end dates</b><p>Renewal dates never fall on a day that does not exist. A plan started on 31 January renews on 28 February (29 in a leap year), and then on 28 March.</p></div>
+
+<h2 id="s8-4">8.4 Pausing and cancelling</h2>
+<p>In the memberships table (and on the member&rsquo;s page) use the buttons on each row:</p>
+<table class="data"><thead><tr><th style="width:16%">Button</th><th>Effect</th></tr></thead><tbody>
+<tr><td><b>Pause</b></td><td>Status becomes <span class="pill o">paused</span>. No renewal invoices are issued. History is kept.</td></tr>
+<tr><td><b>Resume</b></td><td>Status returns to <span class="pill g">active</span>. The existing renewal date is kept; if it has already passed, the next daily run issues the invoice.</td></tr>
+<tr><td><b>Cancel</b></td><td>Asks you to confirm, then ends the plan for good (<span class="pill r">cancelled</span>). The date is recorded and counted in churn reports. To restart, assign a new plan.</td></tr>
+</tbody></table>
+
+<h2 id="s8-5">8.5 Coupons</h2>
+<div class="path">Memberships <i>&rsaquo;</i> Coupons</div>
+<p>Coupons give discounts on invoices. Owners and managers create them; anyone who creates an invoice, starts a plan or orders a service can type a code.</p>
+<table class="data"><thead><tr><th style="width:20%">Field</th><th>Rules</th></tr></thead><tbody>
+<tr><td>Code</td><td>3 to 40 letters, numbers, <code>-</code> or <code>_</code>. Capitalised automatically. Must be unique.</td></tr>
+<tr><td>Type</td><td><b>Percent off</b> (a whole number from 1 to 100) or <b>Fixed &#8377; off</b>.</td></tr>
+<tr><td>Value</td><td>The percentage, or the rupee amount.</td></tr>
+<tr><td>Max uses</td><td>Optional. Once reached, the coupon stops working. Two people cannot both use the last one.</td></tr>
+<tr><td>Valid until</td><td>Optional last day. After it, the coupon is refused.</td></tr>
+</tbody></table>
+<p>The list shows each coupon with how many times it has been used. <b>Disable</b> / <b>Enable</b> switches it off or on without deleting history.</p>
+<h3>How the discount is calculated</h3>
+<p>The discount comes off the <b>price before GST</b>, and GST is charged on what is left. This is the correct treatment for a discount given at the time of invoicing, and the invoice shows both.</p>
+<div class="sample"><span class="tag">Worked example: Flexi &#8377;3,999 with two coupons</span>
+<table class="data"><thead><tr><th>Step</th><th class="r">WELCOME10 (10% off)</th><th class="r">FLAT500 (&#8377;500 off)</th></tr></thead><tbody>
+<tr><td>Price before GST</td><td class="r">&#8377;3,999.00</td><td class="r">&#8377;3,999.00</td></tr>
+<tr><td>Discount</td><td class="r">&minus; &#8377;399.90</td><td class="r">&minus; &#8377;500.00</td></tr>
+<tr><td>Taxable value</td><td class="r">&#8377;3,599.10</td><td class="r">&#8377;3,499.00</td></tr>
+<tr><td>GST 18%</td><td class="r">&#8377;647.84</td><td class="r">&#8377;629.82</td></tr>
+<tr class="total"><td>Total payable</td><td class="r">&#8377;4,246.94</td><td class="r">&#8377;4,128.82</td></tr>
+</tbody></table></div>
+<div class="callout tip"><b class="t">Tip</b><p>Make launch offers time-limited and use-limited: <b>WELCOME10</b> with <i>Max uses 100</i> and <i>Valid until 31 Dec 2026</i>. You will see exactly how many members took it.</p></div>
+
+<h1 class="chapter" id="ch9"><span class="num">Chapter 9</span>Companies</h1>
+<p class="lead">Many members belong to a business. A company record lets you keep its GSTIN and billing address, link its people, see what it owes, and bill it on one GST invoice.</p>
+
+<h2 id="s9-1">9.1 The Companies page</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Companies</div>
+<p>Owners, managers and finance see a card for each company: name, GSTIN, billing email, address, <b>members</b> linked to it, and <b>Outstanding</b> (the total of its unpaid invoices).</p>
+
+<h2 id="s9-2">9.2 Adding and editing a company</h2>
+<ol class="steps">
+<li>Press <b>New company</b>.</li>
+<li>Fill in <b>Company name</b> (required), <b>GSTIN</b> (15 characters, optional), <b>Phone</b>, <b>Billing email</b> and <b>Billing address</b>.</li>
+<li>Press <b>Save company</b>.</li>
+</ol>
+<div class="sample"><span class="tag">Sample data</span>
+<table class="data"><thead><tr><th style="width:22%">Field</th><th>Value</th></tr></thead><tbody>
+<tr><td>Company name</td><td><b>Zenith Labs Pvt Ltd</b></td></tr>
+<tr><td>GSTIN</td><td>36ABCDE1234F1Z5 <span class="small">(fictional; &ldquo;36&rdquo; is Telangana&rsquo;s state code)</span></td></tr>
+<tr><td>Billing email</td><td>accounts@zenithlabs.example</td></tr>
+<tr><td>Phone</td><td>+91 40 5555 0142</td></tr>
+<tr><td>Billing address</td><td>2nd Floor, Madhapur, Hyderabad 500081</td></tr></tbody></table></div>
+<p><b>Edit</b> changes any detail. <b>Delete</b> removes the company from the list and unlinks its members; their accounts and all past invoices are untouched.</p>
+
+<h2 id="s9-3">9.3 Linking members</h2>
+<p>Inside a company card, the <b>Add a member&hellip;</b> menu lists people who are not yet in it. Choose one to link them; press <b>Remove</b> beside a name to unlink. You can also pick the company when adding or editing a member (chapter 7).</p>
+
+<h2 id="s9-4">9.4 Billing a company</h2>
+<p>When you create an invoice (chapter 11) choose <b>Bill to company</b>. The company name and GSTIN appear on the invoice above the contact person, and the company&rsquo;s <b>Outstanding</b> total updates automatically.</p>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Zenith Labs has two members: <b>Aarav Reddy</b> and <b>Priya Sharma</b>. You create one invoice for 2 Flexi desks (2 &times; &#8377;3,999 = &#8377;7,998 + GST &#8377;1,439.64 = <b>&#8377;9,437.64</b>), choose <i>Bill to company: Zenith Labs Pvt Ltd</i>. Zenith&rsquo;s card now shows <b>Outstanding &#8377;9,437.64</b>.</p></div>

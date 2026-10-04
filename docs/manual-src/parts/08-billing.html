@@ -1,0 +1,154 @@
+<h1 class="chapter" id="ch11"><span class="num">Chapter 11</span>Invoices and GST</h1>
+<p class="lead">Every charge in Nexpreneur OS becomes a numbered, GST-ready tax invoice: plans, event tickets, services and anything you create by hand. This chapter explains the invoice list, creating invoices, how GST is split, and printing or emailing.</p>
+
+<h2 id="s11-1">11.1 The invoice list</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Invoices</div>
+<p>Finance roles and managers see every invoice. Members and community managers see only their own. Columns: invoice number, customer, date, due date, total, balance and status.</p>
+<table class="data"><thead><tr><th style="width:20%">Status</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><span class="pill o">Unpaid</span></td><td>Nothing paid yet and not past its due date.</td></tr>
+<tr><td><span class="pill b">Part paid</span></td><td>Some money received; a balance remains.</td></tr>
+<tr><td><span class="pill g">Paid</span></td><td>Fully paid.</td></tr>
+<tr><td><span class="pill r">Overdue</span></td><td>Unpaid or part paid and the due date has passed (worked out automatically each day).</td></tr>
+<tr><td><span class="pill n">Void</span></td><td>Cancelled before any payment. Kept for the record; cannot be paid.</td></tr>
+</tbody></table>
+<p>Invoice numbers are <b>sequential per year</b> with no gaps or duplicates: <code>INV-2026-0001</code>, <code>INV-2026-0002</code>&hellip; A new year restarts at 0001.</p>
+
+<h2 id="s11-2">11.2 Creating an invoice by hand</h2>
+<div class="path">Invoices <i>&rsaquo;</i> New invoice</div>
+<p>Owners, managers and finance can bill anything not already covered by a plan, event or service.</p>
+<table class="data"><thead><tr><th style="width:24%">Field</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Customer</td><td>The member the invoice is issued to.</td></tr>
+<tr><td>Due in (days)</td><td>0 to 120. Default 7.</td></tr>
+<tr><td>Bill to company</td><td>Optional. Fills in the company&rsquo;s GSTIN.</td></tr>
+<tr><td>Customer GSTIN</td><td>Optional, 15 characters.</td></tr>
+<tr><td>Location</td><td>Defaults to the top-bar selection. Used for location reports.</td></tr>
+<tr><td>Coupon code</td><td>Optional (8.5).</td></tr>
+<tr><td>Customer is in another state (IGST)</td><td>Tick if the customer is outside Telangana (see 11.3).</td></tr>
+<tr><td>Email it to the customer</td><td>Ticked by default when email is set up.</td></tr>
+<tr><td>Lines</td><td>Description, quantity, unit price (&#8377;, before GST), GST rate (0, 5, 12, 18 or 28%). Add as many lines as you need (up to 30).</td></tr>
+</tbody></table>
+<p>A live summary under the lines shows subtotal, CGST/SGST or IGST and total before you press <b>Create invoice</b>.</p>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Customer: <b>Ananya Rao</b> (BluePeak Studio) &nbsp;&middot;&nbsp; Due in 7 days &nbsp;&middot;&nbsp; Location: Hyderabad</p>
+<table class="data"><thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>
+<tr><td>Meeting Room B, 14 Oct (3 hours)</td><td class="r">3</td><td class="r">&#8377;1,000.00</td><td class="r">18%</td><td class="r">&#8377;3,000.00</td></tr>
+<tr><td>Projector hire</td><td class="r">1</td><td class="r">&#8377;500.00</td><td class="r">18%</td><td class="r">&#8377;500.00</td></tr>
+<tr class="total"><td colspan="4">Subtotal &#8377;3,500.00 &nbsp;+ CGST &#8377;315.00 &nbsp;+ SGST &#8377;315.00 &nbsp;=&nbsp; Total</td><td class="r">&#8377;4,130.00</td></tr></tbody></table></div>
+
+<h2 id="s11-3">11.3 How GST is worked out</h2>
+<p>Your business is registered in <b>Telangana</b>. The system applies GST like this:</p>
+<table class="data"><thead><tr><th style="width:38%">Customer location</th><th>Tax shown on the invoice</th></tr></thead><tbody>
+<tr><td><b>Same state</b> (Telangana)</td><td><b>CGST</b> + <b>SGST</b>, each half of the GST. At 18%: 9% + 9%.</td></tr>
+<tr><td><b>Another state</b> (tick &ldquo;IGST&rdquo;)</td><td><b>IGST</b>, the full GST. At 18%: 18%. The total is the same; only the split differs.</td></tr>
+</tbody></table>
+<p>GST is calculated on the invoice as a whole and rounded to the nearest paisa; if the tax cannot be split evenly, the extra paisa goes to SGST so the lines always add up exactly.</p>
+<div class="sample"><span class="tag">Worked example: Flexi plan &#8377;3,999</span>
+<table class="data"><thead><tr><th>Line</th><th class="r">Customer in Telangana</th><th class="r">Customer in Karnataka</th></tr></thead><tbody>
+<tr><td>Subtotal</td><td class="r">&#8377;3,999.00</td><td class="r">&#8377;3,999.00</td></tr>
+<tr><td>CGST 9%</td><td class="r">&#8377;359.91</td><td class="r">&mdash;</td></tr>
+<tr><td>SGST 9%</td><td class="r">&#8377;359.91</td><td class="r">&mdash;</td></tr>
+<tr><td>IGST 18%</td><td class="r">&mdash;</td><td class="r">&#8377;719.82</td></tr>
+<tr class="total"><td>Total</td><td class="r">&#8377;4,718.82</td><td class="r">&#8377;4,718.82</td></tr></tbody></table></div>
+<p><b>SAC codes</b> printed per line: plans and bookings use <code>997212</code> (rental of commercial property); event tickets <code>999699</code>; services <code>998599</code>. Your tax adviser can confirm the right codes for your case.</p>
+
+<h2 id="s11-4">11.4 The invoice page</h2>
+<p>Click an invoice number. You see a printable <b>Tax Invoice</b> and, below it, actions for your role.</p>
+<figure><div class="frame"><div class="bar"><i></i><i></i><i></i>&nbsp; Invoices &rsaquo; INV-2026-0001</div><div class="body inv">
+<div class="hd"><div><b style="font-size:12pt">Tax Invoice</b><br><span class="small">INV-2026-0001</span></div><div style="text-align:right"><b>Nexpreneur</b><br><span class="small">GSTIN 36AAAAA0000A1Z5</span><br><span class="pill o">Unpaid</span></div></div>
+<div class="three" style="margin-bottom:5pt"><div><span class="small">Billed to</span><br><b>Zenith Labs Pvt Ltd</b><br>Aarav Reddy<br>aarav@zenithlabs.example</div><div><span class="small">Issued</span><br><b>2026-10-05</b></div><div><span class="small">Due</span><br><b>2026-10-12</b><br><span class="small">Place of supply: Telangana</span></div></div>
+<table class="data" style="margin:3pt 0"><thead><tr><th>Description</th><th>SAC</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody><tr><td>Flexi membership (2026-10-05 to 2026-11-05)</td><td>997212</td><td class="r">1</td><td class="r">&#8377;3,999.00</td><td class="r">18%</td><td class="r">&#8377;3,999.00</td></tr></tbody></table>
+<div class="tot"><div><span>Subtotal</span><span>&#8377;3,999.00</span></div><div><span>CGST</span><span>&#8377;359.91</span></div><div><span>SGST</span><span>&#8377;359.91</span></div><div class="g"><span>Total</span><span>&#8377;4,718.82</span></div><div><span>Paid</span><span>&#8377;0.00</span></div><div class="g"><span>Balance due</span><span>&#8377;4,718.82</span></div></div>
+</div></div><figcaption>Sample tax invoice. Seller GSTIN is shown when you set it in server settings (chapter 25).</figcaption></figure>
+<table class="data"><thead><tr><th style="width:26%">Button</th><th>What it does</th></tr></thead><tbody>
+<tr><td><b>Print / Save as PDF</b></td><td>Opens your browser&rsquo;s print window with only the invoice (menus are hidden). Choose <i>Save as PDF</i> as the printer to get a PDF file.</td></tr>
+<tr><td><b>Email invoice</b> / <b>Email again</b></td><td>Sends the invoice to the customer&rsquo;s email with a <i>View &amp; pay</i> link. (Finance roles; needs email set up.)</td></tr>
+<tr><td><b>Pay &#8377;&hellip; online</b></td><td>Opens the Razorpay payment window (chapter 12) for the balance.</td></tr>
+<tr><td><b>Record payment</b></td><td>For cash, UPI, bank transfer or card taken at the desk (chapter 12).</td></tr>
+<tr><td><b>Refund</b></td><td>Beside each payment. See 12.4.</td></tr>
+<tr><td><b>Void invoice</b></td><td>Only for invoices with no payments. Cannot be undone.</td></tr>
+</tbody></table>
+<p>Members open the same page from their own invoice list or the &ldquo;View &amp; pay&rdquo; email link and can pay online or print it.</p>
+
+<h2 id="s11-5">11.5 Discounts and company details on an invoice</h2>
+<p>When a coupon was used, the invoice shows a <b>Discount (CODE)</b> line between Subtotal and tax. When billed to a company, the company name and GSTIN appear above the contact person.</p>
+
+<h1 class="chapter" id="ch12"><span class="num">Chapter 12</span>Payments, online payment and refunds</h1>
+<p class="lead">Money comes in two ways: members pay online through Razorpay, or staff record what was paid at the desk. Either way the invoice updates by itself.</p>
+
+<h2 id="s12-1">12.1 The Payments page</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Payments</div>
+<p>A list of payments with date, invoice, customer, method, amount and status, plus an <b>Outstanding</b> card showing what is still owed. Members see only their own payments; finance roles see everyone&rsquo;s.</p>
+
+<h2 id="s12-2">12.2 Recording a payment at the desk</h2>
+<div class="path">Invoice <i>&rsaquo;</i> Record payment</div>
+<ol class="steps">
+<li>Open the invoice.</li>
+<li>In <b>Pay this invoice</b>, set the <b>Amount</b> (it starts as the full balance, and cannot be more).</li>
+<li>Choose the <b>Method</b>: Cash, UPI, Bank transfer or Card. Add a <b>Note</b> such as a UTR number.</li>
+<li>Press <b>Record payment</b>.</li>
+</ol>
+<p>The invoice moves to <span class="pill b">Part paid</span> or <span class="pill g">Paid</span> and the member gets a &ldquo;Payment received&rdquo; notification.</p>
+<div class="sample"><span class="tag">Sample data: part payments</span>
+<p>Invoice <b>INV-2026-0001</b>, total &#8377;4,718.82.</p>
+<table class="data"><thead><tr><th>Date</th><th>Action</th><th class="r">Amount</th><th class="r">Balance</th><th>Status</th></tr></thead><tbody>
+<tr><td>5 Oct</td><td>Issued</td><td class="r">&mdash;</td><td class="r">&#8377;4,718.82</td><td><span class="pill o">Unpaid</span></td></tr>
+<tr><td>6 Oct</td><td>Cash at desk</td><td class="r">&#8377;2,000.00</td><td class="r">&#8377;2,718.82</td><td><span class="pill b">Part paid</span></td></tr>
+<tr><td>9 Oct</td><td>UPI, UTR 4098&hellip;</td><td class="r">&#8377;2,718.82</td><td class="r">&#8377;0.00</td><td><span class="pill g">Paid</span></td></tr></tbody></table></div>
+
+<h2 id="s12-3">12.3 Paying online with Razorpay</h2>
+<p>When online payments are switched on (chapter 25), a <b>Pay &#8377;&hellip; online</b> button appears on unpaid invoices for the member and for staff.</p>
+<ol class="steps">
+<li>Press the button. The amount is the invoice balance as held by the system; it cannot be edited in the browser.</li>
+<li>The Razorpay window opens. Pay by UPI, card, netbanking or wallet.</li>
+<li>On success the invoice is marked paid within seconds, and a receipt notification is sent.</li>
+</ol>
+<div class="callout"><b class="t">How it stays safe</b><p>Every online payment is verified three ways: Razorpay&rsquo;s signature is checked, the system asks Razorpay directly what was paid, and a webhook from Razorpay confirms it again. A payment is recorded exactly once even if the member&rsquo;s browser closes at the wrong moment.</p></div>
+<p>If online payment is not switched on, the page says &ldquo;Online payment isn&rsquo;t enabled yet. Please pay at reception.&rdquo;</p>
+
+<h2 id="s12-4">12.4 Refunds</h2>
+<div class="path">Invoice <i>&rsaquo;</i> Payments list <i>&rsaquo;</i> Refund</div>
+<p>Owners, managers and finance can refund part or all of a payment.</p>
+<ol class="steps">
+<li>On the invoice, find the payment and press <b>Refund</b>.</li>
+<li>Set the <b>amount</b> (up to what has not been refunded yet) and an optional <b>reason</b>.</li>
+<li>Press <b>Refund</b>.</li>
+</ol>
+<table class="data"><thead><tr><th style="width:26%">Payment method</th><th>What happens</th></tr></thead><tbody>
+<tr><td><b>Online</b> (Razorpay)</td><td>The refund is sent to Razorpay first and returns to the customer&rsquo;s card or UPI. Only if Razorpay accepts is it recorded.</td></tr>
+<tr><td><b>Cash, UPI, bank, card</b> at the desk</td><td>The system records the refund; <b>you hand the money back</b> yourself.</td></tr>
+</tbody></table>
+<p>The invoice&rsquo;s paid amount goes down and its status updates (Paid &rarr; Part paid &rarr; Unpaid). The payment shows &ldquo;refunded &#8377;&hellip;&rdquo;, the customer gets a notification, and the action is written to the audit log.</p>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Aarav paid <b>&#8377;4,718.82</b> by UPI; the desk is asked to refund <b>&#8377;1,000</b> for an unused day pass. After the refund: payment shows <i>refunded &#8377;1,000.00</i>; the invoice shows Paid &#8377;3,718.82, <b>Balance due &#8377;1,000.00</b>, status <span class="pill b">Part paid</span>. Refunding the remaining &#8377;3,718.82 later marks the payment <i>refunded</i> in full.</p></div>
+<div class="callout warn"><b class="t">Careful</b><p>Refunds cannot be undone. Check the amount twice. To remove an unpaid invoice use <b>Void</b> instead; a voided invoice cannot have payments.</p></div>
+
+<h1 class="chapter" id="ch13"><span class="num">Chapter 13</span>Automatic renewals and payment reminders</h1>
+<p class="lead">You do not have to remember renewal dates or chase payments. A daily job issues the next invoice for each active membership and nudges members who have not paid.</p>
+
+<h2 id="s13-1">13.1 Renewal invoices</h2>
+<p>Each day the job looks at every <b>active</b> membership whose renewal date is within <b>3 days</b>. For each one it:</p>
+<ol class="steps">
+<li>Issues a new invoice for the plan at <b>today&rsquo;s plan price</b> + GST, describing the period (&ldquo;Flexi membership renewal (2026-11-05 to 2026-12-05)&rdquo;).</li>
+<li>Moves the membership&rsquo;s renewal date forward by one billing cycle.</li>
+<li>Notifies the member (&ldquo;Flexi renews on 2026-11-05. Your renewal invoice is ready&rdquo;) and emails the invoice.</li>
+</ol>
+<p>Paused and cancelled memberships are skipped. Running the job twice in a day never creates duplicates.</p>
+<div class="sample"><span class="tag">Sample data: Aarav&rsquo;s timeline</span>
+<table class="data"><thead><tr><th style="width:18%">Date</th><th>What happens</th></tr></thead><tbody>
+<tr><td>5 Oct</td><td>Flexi starts. Invoice INV-2026-0001 (&#8377;4,718.82), due 12 Oct. Renewal date set to 5 Nov.</td></tr>
+<tr><td>2 Nov</td><td>Daily job: renewal date is 3 days away. Invoice for 5 Nov &ndash; 5 Dec issued and emailed, due 5 Nov. Renewal date becomes 5 Dec.</td></tr>
+<tr><td>3 Nov</td><td>Invoice is due within 2 days: first payment reminder (email + notification).</td></tr>
+<tr><td>6 Nov</td><td>Not paid and now overdue: second reminder (3 days after the first).</td></tr>
+<tr><td>7 Nov</td><td>Aarav pays online; reminders stop.</td></tr></tbody></table></div>
+
+<h2 id="s13-2">13.2 Payment reminders</h2>
+<p>Invoices that are <span class="pill o">unpaid</span> or <span class="pill b">part paid</span> get a reminder when they are <b>due within 2 days</b> or <b>overdue</b>. Rules:</p>
+<ul>
+<li>At most <b>one reminder every 3 days</b> per invoice, and at most <b>5 in total</b>, so nobody is nagged forever.</li>
+<li>Each reminder is an <b>in-app notification</b> and, if email is set up, an <b>email</b> with a View &amp; pay link.</li>
+<li>Reminders stop as soon as the invoice is paid, voided or fully refunded.</li>
+</ul>
+
+<h2 id="s13-3">13.3 Making the daily job run</h2>
+<p>The job runs when a scheduler calls a private web address once a day. Setup is a one-time task for the administrator (chapter 25.8). If the job is not scheduled, nothing breaks, but renewals and reminders do not happen automatically.</p>
+<div class="callout"><b class="t">What the job reports</b><p>A successful call returns a short message such as <code>{"ok":true,"renewals":{"issued":2,"errors":0},"reminders":{"sent":3,"errors":0}}</code>. Zeros are normal on a quiet day.</p></div>

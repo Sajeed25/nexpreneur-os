@@ -1,0 +1,69 @@
+<h1 class="chapter" id="ch10"><span class="num">Chapter 10</span>Bookings, Calendar and Floor map</h1>
+<p class="lead">Booking is the heart of daily operations. Members book desks and rooms in a few taps; staff see everything at a glance; and the system makes sure two people can never book the same space at the same time.</p>
+
+<h2 id="s10-1">10.1 Making a booking</h2>
+<div class="path">Bookings <i>&rsaquo;</i> New booking</div>
+<div class="flow">
+<div><b>1 Location</b>top-bar selector</div><div><b>2 Type</b>desk, room&hellip;</div><div><b>3 When</b>date, from, to</div><div><b>4 Check</b>availability</div><div><b>5 Choose</b>a space</div><div><b>6 Review</b>price + GST</div><div><b>7 Confirm</b>done</div>
+</div>
+<ol class="steps">
+<li><b>Where?</b> Choose the location with the selector at the top of the page.</li>
+<li><b>What?</b> Tap a type: Hot Desk, Dedicated Desk, Meeting Room, Private Office, Phone Booth or Event Space.</li>
+<li><b>When?</b> Pick the <b>date</b> and the <b>From</b> and <b>To</b> times (every 30 minutes, 06:00 to 22:00).</li>
+<li>Press <b>Check availability</b>. You see every space of that type with its price, and unavailable ones greyed with an <i>Unavailable</i> tag.</li>
+<li>Tap the space you want. A <b>Review</b> card appears.</li>
+<li>Check the <b>subtotal</b>, <b>GST 18%</b> and <b>total</b>, then press <b>Confirm booking</b>.</li>
+</ol>
+<div class="sample"><span class="tag">Sample data</span>
+<p><b>Aarav Reddy</b> books <b>Meeting Room A</b> (capacity 6, &#8377;800/hour, before GST) on Mon <b>5 Oct 2026</b>, <b>10:00 &ndash; 12:00</b>.</p>
+<table class="data"><tbody>
+<tr><td>2 hours &times; &#8377;800</td><td class="r">&#8377;1,600.00</td></tr><tr><td>GST 18%</td><td class="r">&#8377;288.00</td></tr><tr class="total"><td>Total</td><td class="r">&#8377;1,888.00</td></tr></tbody></table>
+<p>Other prices: a <b>Hot Desk</b> for the day is &#8377;300 + &#8377;54 GST = <b>&#8377;354</b> (desks are charged per day whatever the hours). <b>Meeting Room B</b> 14:00 &ndash; 15:30 at &#8377;1,000/hour = &#8377;1,500 + &#8377;270 = <b>&#8377;1,770</b>.</p></div>
+
+<h3>Rules the system enforces</h3>
+<ul>
+<li>Bookings must fall between <b>06:00 and 22:00</b> and last at most <b>12 hours</b>.</li>
+<li>The start cannot be in the past, and the end must be after the start.</li>
+<li><b>No double-booking.</b> When you press Confirm the system locks the space for a moment and re-checks. If someone else took it a second earlier, you see &ldquo;Sorry, that slot was just taken. Pick another time.&rdquo;</li>
+<li>Resources marked Reserved, Maintenance or Unavailable cannot be booked.</li>
+</ul>
+<div class="callout"><b class="t">Payment for bookings</b><p>A confirmed booking shows the amount payable including GST, which is collected at reception. Bookings do not currently create an invoice by themselves; if you want a booking billed on a GST invoice, create an invoice (chapter 11) or use a membership plan that includes the hours.</p></div>
+<div class="callout"><b class="t">Booking statuses</b><p><span class="pill g">Confirmed</span> and <span class="pill r">Cancelled</span> are used today. The labels Pending, Completed and No Show exist for future use. A booking in the past simply stays Confirmed.</p></div>
+
+<h2 id="s10-2">10.2 The three views</h2>
+<div class="path">Bookings &nbsp;(tabs: List &middot; Calendar &middot; Floor map)</div>
+<h3>List</h3>
+<p>A searchable table of bookings from 60 days ago to 60 days ahead: space, booked by, date and time, total, status. Members see only their own; staff see everyone&rsquo;s. Future bookings have a <b>Cancel</b> button (a confirmation appears). Members can cancel only their own; reception and managers can cancel any, and the member is notified.</p>
+<h3>Calendar</h3>
+<p>Switch between <b>Day</b>, <b>Week</b> and <b>Month</b>. Use the arrows to move and <b>Today</b> to jump back. Each booking is a small block with the space name and time. In Month view each day shows up to three bookings and a &ldquo;+N more&rdquo; counter. Cancelled bookings are hidden.</p>
+<figure><div class="frame"><div class="bar"><i></i><i></i><i></i>&nbsp; Calendar &middot; Week &middot; 5 &ndash; 11 October 2026</div><div class="body" style="padding:0">
+<div class="cols" style="grid-template-columns:repeat(7,1fr);gap:0;font-size:7.4pt">
+<div style="border-right:1px solid #dbe2ec;padding:4pt;background:#fdece3"><b>Mon 5</b><div style="background:#fdece3;border:1px solid #f1b99d;border-radius:4px;padding:2pt;margin-top:3pt;color:#c24510"><b>Meeting Room A</b><br>10:00 &ndash; 12:00</div></div>
+<div style="border-right:1px solid #dbe2ec;padding:4pt"><b>Tue 6</b><div style="background:#fdece3;border:1px solid #f1b99d;border-radius:4px;padding:2pt;margin-top:3pt;color:#c24510"><b>Phone Booth 1</b><br>16:30 &ndash; 17:00</div></div>
+<div style="border-right:1px solid #dbe2ec;padding:4pt"><b>Wed 7</b></div>
+<div style="border-right:1px solid #dbe2ec;padding:4pt"><b>Thu 8</b><div style="background:#fdece3;border:1px solid #f1b99d;border-radius:4px;padding:2pt;margin-top:3pt;color:#c24510"><b>Meeting Room B</b><br>14:00 &ndash; 15:30</div></div>
+<div style="border-right:1px solid #dbe2ec;padding:4pt"><b>Fri 9</b></div><div style="border-right:1px solid #dbe2ec;padding:4pt"><b>Sat 10</b></div><div style="padding:4pt;min-height:44pt"><b>Sun 11</b></div></div></div></div>
+<figcaption>Sample week. Today&rsquo;s column is highlighted.</figcaption></figure>
+<h3>Floor map</h3>
+<p>Every resource is a coloured tile, grouped by type, showing its status <b>right now</b>. Press a tile to open a side panel with the name, capacity, price, status, today&rsquo;s bookings and a <b>Book this&hellip;</b> button.</p>
+<figure><div class="frame"><div class="bar"><i></i><i></i><i></i>&nbsp; Floor map &middot; Nexpreneur Hyderabad</div><div class="body">
+<p class="small" style="margin:0 0 4pt"><b>HOT DESKS</b></p>
+<div class="cols" style="grid-template-columns:repeat(8,1fr);gap:4pt"><div class="tile t-av">H01<br>free</div><div class="tile t-bk">H02<br>booked</div><div class="tile t-av">H03<br>free</div><div class="tile t-av">H04<br>free</div><div class="tile t-bk">H05<br>booked</div><div class="tile t-mt">H06<br>repair</div><div class="tile t-av">H07<br>free</div><div class="tile t-rs">H08<br>held</div></div>
+<p class="small" style="margin:7pt 0 4pt"><b>MEETING ROOMS</b></p>
+<div class="cols" style="grid-template-columns:repeat(4,1fr);gap:4pt"><div class="tile t-av" style="padding:9pt 4pt">Room A &middot; 6 people<br>free</div><div class="tile t-bk" style="padding:9pt 4pt">Room B &middot; 8 people<br>booked now</div><div class="tile t-av" style="padding:9pt 4pt">Phone Booth 1<br>free</div><div class="tile t-un" style="padding:9pt 4pt">Phone Booth 2<br>unavailable</div></div>
+<p class="small" style="margin:6pt 0 0"><span class="pill g">Available</span> <span class="pill b">Booked now</span> <span class="pill o">Reserved</span> <span class="pill r">Maintenance</span> <span class="pill n">Unavailable</span></p>
+</div></div><figcaption>Sample floor map. The map is a grouped grid, not a drawn architectural plan.</figcaption></figure>
+
+<h2 id="s10-3">10.3 Cancelling a booking</h2>
+<ol class="steps">
+<li>Bookings &rsaquo; <b>List</b>, find the booking (search by space or person).</li>
+<li>Press <b>Cancel</b> and confirm.</li>
+</ol>
+<p>The slot becomes free immediately and the person gets a &ldquo;Booking cancelled&rdquo; notification (noting if the front desk cancelled it). Past bookings cannot be cancelled.</p>
+
+<h2 id="s10-4">10.4 Tips for front desk and staff</h2>
+<ul>
+<li>Use the <b>Calendar &rsaquo; Day</b> view each morning to see the day&rsquo;s meetings.</li>
+<li>If a room is being repaired, set it to <b>Maintenance</b> in Resources (chapter 6) so nobody books it; you do not need to cancel anything unless there are already bookings.</li>
+<li>Members can book from their phone. If someone cannot, you can sign in and book for yourself, but bookings are always made for the signed-in person.</li>
+</ul>

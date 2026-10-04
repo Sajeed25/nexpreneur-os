@@ -1,0 +1,80 @@
+<h1 class="chapter" id="ch7"><span class="num">Chapter 7</span>Members</h1>
+<p class="lead">The Members section is your customer list. Reception and managers use it to onboard people, keep details current, start plans and help with passwords.</p>
+
+<h2 id="s7-1">7.1 The member list</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Members</div>
+<table class="data"><thead><tr><th style="width:20%">Column</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>Member</td><td>Name and email. Click to open the member&rsquo;s page.</td></tr>
+<tr><td>Company</td><td>Linked company (chapter 9) or the company name typed in.</td></tr>
+<tr><td>Plan</td><td>Current plan with a coloured status: <span class="pill g">active</span> <span class="pill o">paused</span> <span class="pill r">cancelled</span> <span class="pill n">expired</span>. &ldquo;No plan&rdquo; if none.</td></tr>
+<tr><td>Location</td><td>Home location.</td></tr>
+<tr><td>Renewal</td><td>Next renewal date of an active plan.</td></tr>
+<tr><td>Owes</td><td>Unpaid invoice balance (shown to finance roles and managers).</td></tr>
+<tr><td>Status</td><td>Active or Deactivated account.</td></tr>
+</tbody></table>
+<p>Use the search box (name, email, company, plan, phone) and the two filters: <b>Active / Deactivated / All</b>, and <b>Any plan / Plan active / paused / cancelled / No plan</b>. The location selector narrows the list too.</p>
+<figure><div class="frame"><div class="bar"><i></i><i></i><i></i>&nbsp; Members</div><div class="body" style="padding:0">
+<table class="data" style="margin:0;font-size:8pt"><thead><tr><th>Member</th><th>Company</th><th>Plan</th><th>Location</th><th>Renewal</th><th class="r">Owes</th></tr></thead><tbody>
+<tr><td><b>Aarav Reddy</b><br><span class="small">aarav@zenithlabs.example</span></td><td>Zenith Labs</td><td>Flexi <span class="pill g">active</span></td><td>Hyderabad</td><td>05 Nov 2026</td><td class="r">&mdash;</td></tr>
+<tr><td><b>Ananya Rao</b><br><span class="small">ananya@bluepeak.example</span></td><td>BluePeak Studio</td><td>Fixed Desk <span class="pill g">active</span></td><td>Hyderabad</td><td>12 Nov 2026</td><td class="r" style="color:#b91c1c"><b>&#8377;5,898.82</b></td></tr>
+<tr><td><b>Harsha Nair</b><br><span class="small">harsha@greenloop.example</span></td><td>GreenLoop</td><td>Virtual Office <span class="pill o">paused</span></td><td>Nalgonda</td><td>&mdash;</td><td class="r">&mdash;</td></tr>
+</tbody></table></div></div><figcaption>Sample member list. Red amounts are unpaid invoices.</figcaption></figure>
+
+<h2 id="s7-2">7.2 Adding a member</h2>
+<div class="path">Members <i>&rsaquo;</i> Add member</div>
+<p>Owners, managers and reception can add members. The form has three parts.</p>
+<h3>Part 1: who they are</h3>
+<table class="data"><thead><tr><th style="width:24%">Field</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Full name, Email</td><td>Required. The email must not already have an account.</td></tr>
+<tr><td>Phone, Job title</td><td>Optional. Job title shows in the member directory.</td></tr>
+<tr><td>Company (linked)</td><td>Pick an existing company from chapter 9. Invoices can then be billed to it.</td></tr>
+<tr><td>Company name</td><td>Free text, if the company is not in the list.</td></tr>
+<tr><td>Home location</td><td>The location they mainly use. Defaults to the one chosen in the top selector.</td></tr>
+</tbody></table>
+<h3>Part 2: how will they sign in?</h3>
+<ul>
+<li><b>Email them a link to choose their own password</b> (best): the member receives a welcome email with a <b>Set my password</b> button. The link works once and lasts 7 days. Available once email is set up.</li>
+<li><b>Set a temporary password myself</b>: you type one (at least 8 characters) and tell the member privately. They can change it later on their Profile.</li>
+</ul>
+<h3>Part 3: start a plan now (optional, finance roles and managers)</h3>
+<p>Choose a <b>plan</b>, <b>start date</b> and optional <b>coupon</b>. The system starts the plan, calculates the renewal date, issues the first GST invoice and emails it.</p>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Name: <b>Kavya Verma</b> &middot; Email: kavya@codenest.example &middot; Phone: +91 98765 43210 &middot; Job title: Developer &middot; Company: CodeNest &middot; Home location: <b>Nexpreneur Warangal</b></p>
+<p>Sign-in: <b>Email them a link</b> &middot; Plan: <b>Flexi &middot; &#8377;3,999</b> &middot; Start: 5 Oct 2026 &middot; Coupon: <b>WELCOME10</b></p>
+<p><b>Result:</b> a green message &ldquo;Kavya Verma was added and an invitation email was sent&rdquo;, a link to invoice <b>INV-2026-0003</b>: &#8377;3,999.00 &minus; 10% = &#8377;3,599.10 + GST &#8377;647.84 = <b>&#8377;4,246.94</b>, and a renewal date of <b>5 November 2026</b>.</p></div>
+<div class="callout warn"><b class="t">If something is missing</b><p>If the invitation email cannot be sent, the member is still created; the message tells you, and you can press <b>Send password link</b> on their page later. If the plan cannot be started (for example the coupon is invalid), the member is still created and the message explains why.</p></div>
+
+<h2 id="s7-3">7.3 A member&rsquo;s page</h2>
+<p>Click a name to open the member&rsquo;s page. A header card shows contact details, job and company, home location, and badges for status and plan. Seven tabs follow:</p>
+<table class="data"><thead><tr><th style="width:18%">Tab</th><th>What it holds</th></tr></thead><tbody>
+<tr><td><b>Overview</b></td><td>Joined date, last sign-in, amount owed, and the action buttons (7.4 to 7.6).</td></tr>
+<tr><td><b>Membership</b></td><td>Start a plan; history of every plan with Pause, Resume and Cancel.</td></tr>
+<tr><td><b>Bookings</b></td><td>The 15 latest bookings with space, time, price and status.</td></tr>
+<tr><td><b>Invoices</b></td><td>The 15 latest invoices with number, date, total, status. (Finance roles.)</td></tr>
+<tr><td><b>Activity</b></td><td>The recorded actions about this person (added, updated, password set&hellip;).</td></tr>
+<tr><td><b>Access</b></td><td>Door and desk access control. <i>Coming soon.</i></td></tr>
+<tr><td><b>Documents</b></td><td>Agreements and ID documents. <i>Coming soon.</i></td></tr>
+</tbody></table>
+
+<h2 id="s7-4">7.4 Editing details and the member&rsquo;s plan</h2>
+<ul>
+<li><b>Edit details</b> (Overview tab): change name, email, phone, job title, company, home location. Changing the email moves their sign-in to the new address; it is recorded in Activity.</li>
+<li><b>Start a plan</b> (Membership tab): choose plan and start date, optional coupon. Same behaviour as 7.2.</li>
+<li><b>Pause</b>: stops renewals and invoices but keeps the history. <b>Resume</b> turns it back on.</li>
+<li><b>Cancel</b>: ends the plan permanently (a confirmation appears). To start again, start a new plan.</li>
+</ul>
+
+<h2 id="s7-5">7.5 Deactivating and reactivating</h2>
+<p>On the Overview tab, <b>Deactivate</b> blocks sign-in immediately and signs the person out on the very next page they open. Nothing is deleted: invoices, bookings and history remain. <b>Reactivate</b> restores access. Use this when someone leaves.</p>
+
+<h2 id="s7-6">7.6 Passwords for members</h2>
+<table class="data"><thead><tr><th style="width:28%">Situation</th><th>What to do</th></tr></thead><tbody>
+<tr><td>New member, email set up</td><td>Choose &ldquo;Email them a link&rdquo; when adding.</td></tr>
+<tr><td>Member lost the invitation</td><td>Overview &rsaquo; <b>Send password link</b>. A new 7-day link is emailed.</td></tr>
+<tr><td>Member forgot their password</td><td>They can use <b>Forgot password?</b> themselves, or you can use <b>Send password link</b>.</td></tr>
+<tr><td>Email is not set up, or they cannot receive email</td><td>Overview &rsaquo; <b>Set a temporary password</b> (8 to 72 characters) &rsaquo; <b>Set password</b>. They are signed out everywhere and use the new password.</td></tr>
+</tbody></table>
+<div class="callout"><b class="t">Privacy</b><p>You can set or reset a password but you can never see a member&rsquo;s existing password. Passwords are stored scrambled and cannot be read by anyone, including administrators.</p></div>
+
+<h2 id="s7-7">7.7 Members versus staff</h2>
+<p>The Members section lists people with the <b>Member</b> role. Your own team (reception, finance, community, staff, managers) is created and managed in <b>Settings &rsaquo; Team &amp; roles</b> (chapter 23). Anyone who signs up through the public page also starts as a member.</p>

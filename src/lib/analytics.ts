@@ -120,12 +120,13 @@ export async function computeAnalytics(org: string, range: RangeKey, opts: { fin
   return {
     range,
     kpis: {
-      collectedPaise: rPays.reduce((s, p) => s + p.amt, 0), mrrPaise: mrr, arrPaise: mrr * 12, activeMembers: activeUsers,
+      // Money figures are only computed for finance-capable roles; everyone else gets zeros, so they are never sent to the browser.
+      collectedPaise: rPays.reduce((s, p) => s + p.amt, 0), mrrPaise: opts.finance ? mrr : 0, arrPaise: opts.finance ? mrr * 12 : 0, activeMembers: activeUsers,
       newMembers: joined.filter((j) => j >= from && j < to).length, churnPct: pct(endedInRange, active.length + endedInRange),
       bookings: rBks.filter((b) => b.s >= from && b.s < to).length,
       occupancyPct: pct(rBks.reduce((s, b) => s + hoursIn(b), 0), nRes * rangeHours),
       roomUtilPct: pct(rBks.filter((b) => b.kind === "meeting_room").reduce((s, b) => s + hoursIn(b), 0), rooms.length * rangeHours),
-      arpmPaise: activeUsers ? Math.round(mrr / activeUsers) : 0, leadConvPct: pct(wonLeads, lds.length),
+      arpmPaise: opts.finance && activeUsers ? Math.round(mrr / activeUsers) : 0, leadConvPct: pct(wonLeads, lds.length),
       memberConvPct: pct(new Set(mems.map((m) => m.user)).size, members.length), outstandingPaise: Number(owed[0]?.v ?? 0),
     },
     series: { revenue, occupancy, members: membersSeries, bookings: bookingsSeries, ended },

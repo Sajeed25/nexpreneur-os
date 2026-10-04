@@ -1,0 +1,98 @@
+<h1 class="chapter" id="ch3"><span class="num">Chapter 3</span>Finding your way around</h1>
+<p class="lead">A few tools appear on every page. Learning them first makes everything else quicker.</p>
+
+<h2 id="s3-1">3.1 Sidebar and mobile navigation</h2>
+<p>The sidebar lists the sections your role may use. Items are in this order: Dashboard, Bookings, Calendar, Members, Companies, Memberships, Locations, Resources, Payments, Invoices, Visitors, CRM, Events, Community, Services, Analytics, AI Assistant, Notifications, Support, Settings, Profile. You only see the ones allowed for you.</p>
+<ul>
+<li><b>Collapse</b> (bottom of the sidebar) shrinks it to icons to give wide tables more room.</li>
+<li>On a <b>phone</b> the sidebar is replaced by a bottom bar with five shortcuts. Members get <i>Home, Bookings, Membership, Payments, Profile</i>; staff get their first five sections. Everything else is reachable through <b>Search</b>.</li>
+</ul>
+
+<h2 id="s3-2">3.2 The location selector</h2>
+<p>The box at the top left decides which location you are looking at. It affects Bookings, Resources, Members, Services orders, Analytics and the Dashboard.</p>
+<table class="data"><thead><tr><th style="width:26%">If you choose</th><th>You see</th></tr></thead><tbody>
+<tr><td><b>All Locations</b> (owners only)</td><td>Everything together.</td></tr>
+<tr><td><b>Nexpreneur Hyderabad</b></td><td>Only resources, bookings, memberships and invoices of that location.</td></tr>
+</tbody></table>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Members list with <b>All Locations</b>: 87 members. Switch to <b>Nexpreneur Warangal</b>: the list shows members whose home location is Warangal, plus members who have no home location set (they appear everywhere until you assign one).</p></div>
+<p>Your choice is remembered on this device. Locations you add (chapter 6) appear in the selector immediately.</p>
+
+<h2 id="s3-3">3.3 Search</h2>
+<p>Press <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>&#8984;</kbd>+<kbd>K</kbd> on a Mac) or press the search box. Type at least two letters.</p>
+<ul>
+<li><b>Pages</b> are matched first (type &ldquo;inv&rdquo; to jump to Invoices).</li>
+<li><b>Records</b> follow: members, resources, invoices (by number), events, leads, companies. You only see record types your role may open.</li>
+<li>Press <kbd>Enter</kbd> to open the first result, or click any result. <kbd>Esc</kbd> closes.</li>
+</ul>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Type <b>zen</b> &rarr; <i>Aarav Reddy &middot; Member</i> (company Zenith Labs) &nbsp;|&nbsp; type <b>INV-2026</b> &rarr; every invoice from 2026 &nbsp;|&nbsp; type <b>room</b> &rarr; <i>Meeting Room A</i>, <i>Meeting Room B</i>.</p></div>
+
+<h2 id="s3-4">3.4 The notification bell</h2>
+<p>The bell shows how many notifications you have not read and updates about once a minute. Press it to open the Notification Centre (chapter 20).</p>
+
+<h2 id="s3-5">3.5 Dark mode</h2>
+<p>The moon/sun button switches between light and dark mode. Pick whichever is easier on your eyes; invoices always print in black on white.</p>
+
+<h2 id="s3-6">3.6 The AI button</h2>
+<p>The round button at the bottom right opens the AI Assistant (chapter 22). It is hidden on the Assistant page itself.</p>
+
+<h2 id="s3-7">3.7 Keyboard shortcuts and small habits</h2>
+<table class="data"><thead><tr><th style="width:30%">Keys</th><th>Action</th></tr></thead><tbody>
+<tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd> / <kbd>&#8984;</kbd>+<kbd>K</kbd></td><td>Open or close search</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Close search or a side panel</td></tr>
+<tr><td><kbd>Enter</kbd> in search</td><td>Open the first result</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd> on an invoice</td><td>Print or save as PDF (same as the <b>Print / Save as PDF</b> button)</td></tr>
+</tbody></table>
+<div class="callout tip"><b class="t">Tip</b><p>Every table has a search box above it and page arrows below. Searching a table filters instantly without leaving the page.</p></div>
+
+
+<h1 class="chapter" id="ch4"><span class="num">Chapter 4</span>Roles and permissions</h1>
+<p class="lead">Roles keep people focused and protect sensitive data. Permissions are enforced on the server: even if someone types a web address by hand, the system checks their role first.</p>
+
+<h2 id="s4-1">4.1 Who can open which section</h2>
+<p><span class="yes">&#10003;</span> = can open &nbsp; <span class="part">own</span> = sees only their own records &nbsp; <span class="no">&ndash;</span> = hidden</p>
+<table class="data" style="font-size:8pt">
+<thead><tr><th>Section</th><th>Owner / Super Admin</th><th>Location Mgr</th><th>Reception</th><th>Finance</th><th>Community</th><th>Staff</th><th>Member</th></tr></thead>
+<tbody>
+<tr><td>Dashboard</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>Bookings</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="part">own</td></tr>
+<tr><td>Calendar</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td></tr>
+<tr><td>Members</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="yes">view</td><td class="no">&ndash;</td><td class="no">&ndash;</td></tr>
+<tr><td>Companies</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td></tr>
+<tr><td>Memberships</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="part">own</td></tr>
+<tr><td>Locations</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td></tr>
+<tr><td>Resources</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">view</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="yes">view</td><td class="no">&ndash;</td></tr>
+<tr><td>Payments</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="part">own</td></tr>
+<tr><td>Invoices</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="part">own</td><td class="no">&ndash;</td><td class="part">own</td></tr>
+<tr><td>Visitors</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="part">own</td></tr>
+<tr><td>CRM</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td></tr>
+<tr><td>Events</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="yes">join</td></tr>
+<tr><td>Community</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td></tr>
+<tr><td>Services</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="yes">order</td></tr>
+<tr><td>Analytics</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td></tr>
+<tr><td>AI Assistant</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td></tr>
+<tr><td>Support</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="yes">&#10003;</td></tr>
+<tr><td>Notifications, Profile</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>Settings</td><td class="yes">&#10003;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td><td class="no">&ndash;</td></tr>
+</tbody></table>
+
+<h2 id="s4-2">4.2 Who can change things</h2>
+<p>Being able to open a page is not the same as being able to change it. These are the finer rules:</p>
+<table class="data"><thead><tr><th style="width:30%">Action</th><th>Allowed roles</th></tr></thead><tbody>
+<tr><td>Add, edit, deactivate members; send password links; set temporary passwords</td><td>Owner, Super Admin, Location Manager, Reception</td></tr>
+<tr><td>Start, pause, cancel a plan; create invoices; record payments; send invoices by email</td><td>Owner, Super Admin, Location Manager, Finance</td></tr>
+<tr><td>Refund a payment</td><td>Owner, Super Admin, Location Manager, Finance</td></tr>
+<tr><td>Void an unpaid invoice</td><td>Owner, Super Admin, Location Manager, Finance</td></tr>
+<tr><td>Create and edit plans, coupons, services; archive plans</td><td>Owner, Super Admin, Location Manager</td></tr>
+<tr><td>Add and edit resources and their prices</td><td>Owner, Super Admin, Location Manager</td></tr>
+<tr><td>Add, rename, archive locations</td><td>Owner, Super Admin</td></tr>
+<tr><td>Companies: create, edit, link members</td><td>Owner, Super Admin, Location Manager, Finance</td></tr>
+<tr><td>Create and edit events; see attendees</td><td>Owner, Super Admin, Location Manager, Community Manager</td></tr>
+<tr><td>Post announcements; delete any community post; send notification announcements</td><td>Owner, Super Admin, Location Manager, Community Manager</td></tr>
+<tr><td>Check visitors in and out</td><td>Owner, Super Admin, Location Manager, Reception, Staff</td></tr>
+<tr><td>See all support requests and close them</td><td>Owner, Super Admin, Location Manager, Reception (members see and close their own)</td></tr>
+<tr><td>Team &amp; roles, audit log</td><td>Owner, Super Admin only</td></tr>
+<tr><td>Grant the Super Admin role</td><td>Super Admin only</td></tr>
+</tbody></table>
+<div class="callout"><b class="t">Money is protected</b><p>Roles without finance rights (reception, staff, community) never receive revenue, MRR, outstanding amounts, payments or renewal lists, even on the Dashboard. The figures are not simply hidden on screen; they are not sent to the browser at all.</p></div>

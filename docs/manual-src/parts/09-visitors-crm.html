@@ -1,0 +1,84 @@
+<h1 class="chapter" id="ch14"><span class="num">Chapter 14</span>Visitors and check-in</h1>
+<p class="lead">Members invite guests ahead of time and share a QR code. When the guest arrives, reception checks them in with a few clicks, and the host is told straight away.</p>
+
+<h2 id="s14-1">14.1 Inviting a visitor (members and staff)</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Visitors <i>&rsaquo;</i> Invite visitor &nbsp;&nbsp;or&nbsp;&nbsp; Home <i>&rsaquo;</i> Invite Visitor</div>
+<ol class="steps">
+<li>Enter the visitor&rsquo;s <b>name</b>, optional <b>phone</b> and optional <b>email</b>.</li>
+<li>Pick the <b>date</b> (today or later) and <b>time</b>, and write the <b>purpose</b> (&ldquo;Client meeting&rdquo;).</li>
+<li>Press <b>Generate QR invitation</b>.</li>
+</ol>
+<p>A card appears with a <b>QR code</b> and a 32-character <b>code</b>. If you entered the visitor&rsquo;s email and email is set up, they already received an email with the QR code inside it, plus the host name, date and time. If not, screenshot the QR or copy the code and send it yourself.</p>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Host: <b>Priya Sharma</b> &nbsp;&middot;&nbsp; Visitor: <b>Karthik Naidu</b>, +91 99887 76655, karthik@clientco.example &nbsp;&middot;&nbsp; Monday <b>5 Oct 2026</b>, <b>14:00</b> &nbsp;&middot;&nbsp; Purpose: <b>Product demo</b></p>
+<p>Code (example): <code>9f2c41ab7d3e4c05a1b8e6f0d27c9a34</code></p>
+<p>Karthik&rsquo;s email: <i>&ldquo;Priya Sharma has invited you to Nexpreneur. 2026-10-05 at 14:00 (Product demo). Show this QR code at reception.&rdquo;</i></p></div>
+<p>Under <b>Today</b> and <b>Other days</b> each invitation shows a status:</p>
+<table class="data"><thead><tr><th style="width:22%">Status</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><span class="pill o">Expected</span></td><td>Invited, not arrived.</td></tr><tr><td><span class="pill g">Checked in</span></td><td>On site. The check-in time is shown.</td></tr><tr><td><span class="pill n">Checked out</span></td><td>Left. Check-out time shown.</td></tr><tr><td><span class="pill r">Cancelled</span></td><td>The host cancelled.</td></tr>
+</tbody></table>
+<p>Hosts can press <b>Show QR</b> to see it again, <b>Resend</b> to re-email the visitor, or <b>Cancel</b> while the status is Expected.</p>
+
+<h2 id="s14-2">14.2 Checking visitors in and out (front desk)</h2>
+<p>Reception, staff, managers and owners see everyone&rsquo;s invitations. Two ways to check a guest in:</p>
+<h3>By code</h3>
+<p>At the top of the page, type or paste the visitor&rsquo;s code into <b>Check in by code</b> and press <b>Check in</b>.</p>
+<h3>From the list</h3>
+<p>Under <b>Today</b>, press <b>Check in</b> next to the guest. Later press <b>Check out</b> when they leave.</p>
+<div class="sample"><span class="tag">Sample data</span>
+<table class="data"><thead><tr><th>Visitor</th><th>Host</th><th>Time</th><th>Status</th></tr></thead><tbody>
+<tr><td>Karthik Naidu</td><td>Priya Sharma</td><td>14:00</td><td><span class="pill g">Checked in</span> In 13:52</td></tr>
+<tr><td>Meena Joshi</td><td>Aarav Reddy</td><td>15:30</td><td><span class="pill o">Expected</span></td></tr>
+<tr><td>Rahul Patel</td><td>Ananya Rao</td><td>11:00</td><td><span class="pill n">Checked out</span> 11:05 &ndash; 12:20</td></tr></tbody></table>
+<p>When Karthik is checked in, <b>Priya Sharma</b> receives a notification: &ldquo;Karthik Naidu has arrived&rdquo;.</p></div>
+<h3>What the system checks</h3>
+<ul>
+<li>A code only works on the <b>date of the visit</b>. Anything else shows &ldquo;This invitation is for 2026-10-06, not today&rdquo;.</li>
+<li>A guest cannot be checked in twice (&ldquo;Karthik Naidu is already checked in&rdquo;).</li>
+<li>Only reception, staff, managers and owners can check people in or out; hosts cannot do it for their own guests.</li>
+<li>A wrong code shows &ldquo;No invitation found for that code&rdquo;.</li>
+</ul>
+<div class="callout tip"><b class="t">Tip</b><p>A camera scanner is not built in. Copy-paste the code, or have the visitor read it out. Most QR scanner apps on a phone copy the code to the clipboard, which you can paste into the box.</p></div>
+
+<h1 class="chapter" id="ch15"><span class="num">Chapter 15</span>CRM: your sales pipeline</h1>
+<p class="lead">Every coworking space lives on enquiries. The CRM keeps each lead, what they want, who spoke to them and where they are in the sale. It is available to owners, super admins and location managers.</p>
+
+<h2 id="s15-1">15.1 The board</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> CRM</div>
+<p>Leads are cards in seven columns. The header shows the number of leads and the <b>pipeline value</b>: the total expected value of every lead that is not Lost.</p>
+<figure><div class="frame"><div class="bar"><i></i><i></i><i></i>&nbsp; CRM &middot; 24 leads &middot; pipeline value &#8377;9,85,000</div><div class="body">
+<div class="cols" style="grid-template-columns:repeat(4,1fr);gap:5pt">
+<div><div class="colhead">New Lead &middot; 2</div><div class="card"><b>Meera Chowdary</b><br><span class="small">Flexi</span><br>&#8377;48,000</div><div class="card"><b>Kiran Analytics</b><br><span class="small">Fixed Desk</span><br>&#8377;60,000</div></div>
+<div><div class="colhead">Tour Scheduled &middot; 1</div><div class="card"><b>Vistara Legal</b><br><span class="small">Private Office</span><br>&#8377;2,40,000</div></div>
+<div><div class="colhead">Proposal Sent &middot; 1</div><div class="card"><b>Pixelwise</b><br><span class="small">3 desks</span><br>&#8377;1,44,000</div></div>
+<div><div class="colhead">Won &middot; 1</div><div class="card"><b>Anvaya Design</b><br><span class="small">Private Office</span><br>&#8377;2,40,000</div></div></div>
+</div></div><figcaption>Sample board (four of the seven columns shown). Columns: New Lead, Contacted, Tour Scheduled, Proposal Sent, Negotiation, Won, Lost.</figcaption></figure>
+
+<h2 id="s15-2">15.2 Adding a lead</h2>
+<ol class="steps">
+<li>Press <b>New lead</b>.</li>
+<li>Fill in <b>Name</b> (required), <b>Company</b>, <b>Phone</b>, <b>Email</b>, <b>Interested plan</b>, <b>Expected value (&#8377;)</b> and <b>Requirements</b>.</li>
+<li>Press <b>Add lead</b>. It starts in <b>New Lead</b>.</li>
+</ol>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Name: <b>Vistara Legal</b> &middot; Company: Vistara Legal LLP &middot; Phone +91 90000 11122 &middot; Email: office@vistara.example &middot; Interested plan: <b>Private Office</b> &middot; Expected value: <b>&#8377;2,40,000</b> (12 months &times; &#8377;19,999 &asymp; &#8377;2.4 lakh) &middot; Requirements: <i>Office for 5 lawyers, start 1 Nov, needs meeting room 10 h/month.</i></p></div>
+
+<h2 id="s15-3">15.3 Moving a lead through the pipeline</h2>
+<ul>
+<li><b>Drag and drop</b> a card to another column (computer).</li>
+<li>Or use the small <b>drop-down on the card</b> to choose a stage (works well on phones).</li>
+</ul>
+<p>The change is shown instantly. If saving fails, the card jumps back and an error appears. Every stage change is written into the lead&rsquo;s timeline.</p>
+
+<h2 id="s15-4">15.4 The lead drawer: notes, calls and timeline</h2>
+<p>Click a lead&rsquo;s name to open a side panel with all its details and an <b>Activity</b> timeline.</p>
+<ol class="steps">
+<li>Choose <b>Note</b> or <b>Call log</b>, type what happened or the follow-up needed, and press <b>Add to timeline</b>.</li>
+<li>Entries are listed newest first with date and time. Stage moves appear automatically (&ldquo;Moved from Contacted to Tour Scheduled&rdquo;).</li>
+</ol>
+<div class="sample"><span class="tag">Sample timeline</span>
+<table class="data"><tbody>
+<tr><td style="width:24%">4 Oct 2026, 11:20</td><td>Moved from <b>Contacted</b> to <b>Tour Scheduled</b></td></tr>
+<tr><td>3 Oct 2026, 16:05</td><td><i>Call log:</i> Spoke to the managing partner. Wants to tour on Tuesday 6th at 5 PM. Send brochure.</td></tr>
+<tr><td>2 Oct 2026, 10:40</td><td><i>Note:</i> Enquiry came via website. Currently in a 4-person rented office; lease ends 31 Oct.</td></tr></tbody></table></div>
+<div class="callout"><b class="t">When a lead is won</b><p>Moving a lead to <b>Won</b> does not create a member automatically. Add them as a member (chapter 7) and start their plan so they are invoiced. Won leads feed your <b>lead conversion</b> figure in Analytics.</p></div>

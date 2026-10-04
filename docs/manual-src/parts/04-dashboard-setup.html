@@ -1,0 +1,97 @@
+<h1 class="chapter" id="ch5"><span class="num">Chapter 5</span>The Dashboard and member Home</h1>
+<p class="lead">The Dashboard is your morning briefing: how busy the space is, how money is moving, and what needs attention today. Members get a simpler, personal Home instead.</p>
+
+<h2 id="s5-1">5.1 The admin Dashboard</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Dashboard</div>
+<p>Pick a period with the tabs at the top right: <b>Today</b>, <b>7 Days</b>, <b>30 Days</b>, <b>90 Days</b> or <b>This Year</b>. Everything on the page, and the location selector, follows your choice.</p>
+<figure>
+<div class="frame"><div class="bar"><i></i><i></i><i></i>&nbsp; Dashboard &middot; 30 Days &middot; All Locations</div><div class="body">
+<div class="cols" style="grid-template-columns:repeat(5,1fr)">
+<div class="kpi"><small>Revenue collected</small><b>&#8377;4,12,850</b></div>
+<div class="kpi"><small>MRR</small><b>&#8377;3,89,913</b></div>
+<div class="kpi"><small>Active members</small><b>87</b></div>
+<div class="kpi"><small>Occupancy</small><b>55%</b></div>
+<div class="kpi"><small>Outstanding</small><b>&#8377;48,200</b></div></div>
+<div class="two" style="margin-top:7pt"><div class="kpi" style="height:46pt"><small>Revenue trend (area chart)</small>&#8767;&#8767;&#8767;</div><div class="kpi" style="height:46pt"><small>Occupancy trend (line chart)</small>&#8767;&#8767;&#8767;</div></div>
+</div></div>
+<figcaption>Sample Dashboard: five key numbers, then trend charts, then activity lists.</figcaption></figure>
+<table class="data"><thead><tr><th style="width:24%">Card</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><b>Revenue collected</b></td><td>Payments received in the period, including GST. (Finance roles only.)</td></tr>
+<tr><td><b>MRR</b></td><td>Monthly recurring revenue: what active plans bring in per month, before GST. A yearly plan counts as one twelfth. (Finance roles only.)</td></tr>
+<tr><td><b>Active members</b></td><td>People with an active plan.</td></tr>
+<tr><td><b>Occupancy</b></td><td>Booked hours &divide; open hours (06:00&ndash;22:00) across all your resources.</td></tr>
+<tr><td><b>Bookings</b></td><td>Confirmed and completed bookings that start in the period.</td></tr>
+<tr><td><b>Outstanding</b></td><td>Unpaid invoice balances. (Finance roles only.)</td></tr>
+</tbody></table>
+<p>Below the cards are four charts (Revenue trend, Occupancy trend, Member growth, Booking trends) and up to six lists:</p>
+<table class="data"><thead><tr><th style="width:28%">List</th><th>Shows</th></tr></thead><tbody>
+<tr><td>Today&rsquo;s activity</td><td>The latest actions in the system, in plain words: &ldquo;Divya Nair checked a visitor in&rdquo;.</td></tr>
+<tr><td>Upcoming bookings</td><td>The next five confirmed bookings.</td></tr>
+<tr><td>Recent payments</td><td>The latest five payments received. (Finance roles.)</td></tr>
+<tr><td>Upcoming events</td><td>Next published events.</td></tr>
+<tr><td>New leads</td><td>Latest CRM leads with expected value. (Roles with CRM.)</td></tr>
+<tr><td>Membership renewals</td><td>The next renewal dates. (Finance roles.)</td></tr>
+</tbody></table>
+<div class="callout"><b class="t">Note</b><p>Chart buckets change with the period: hourly for Today, daily for 7 and 30 days, weekly for 90 days, monthly for This Year.</p></div>
+
+<h2 id="s5-2">5.2 Member Home</h2>
+<p>Members see a friendly page instead:</p>
+<ul>
+<li><b>Greeting</b> that follows the time of day (Good morning / afternoon / evening).</li>
+<li><b>Upcoming booking</b>: the next confirmed booking, or a link to book a space.</li>
+<li><b>Quick actions</b>: Book Desk, Meeting Room, Day Pass, Invite Visitor, Events.</li>
+<li><b>Membership card</b>: plan, price and renewal date.</li>
+<li><b>Outstanding</b>: how much they owe, with a link to pay.</li>
+</ul>
+<div class="sample"><span class="tag">Sample data</span>
+<p><b>Good morning, Aarav</b> &mdash; Upcoming booking: <b>Meeting Room A</b>, Mon 5 Oct, 10:00 AM &ndash; 12:00 PM. Membership: <b>Flexi &middot; &#8377;3,999/month</b>, renews 5 November 2026. Outstanding: <b>&#8377;0</b> (You&rsquo;re all paid up).</p></div>
+
+<h1 class="chapter" id="ch6"><span class="num">Chapter 6</span>Setting up your space: Locations and Resources</h1>
+<p class="lead">Before anyone can book, the system needs to know what you have: your locations, and every desk, room and office inside them with its price.</p>
+
+<h2 id="s6-1">6.1 Locations</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Locations</div>
+<p>Each location is a card showing the number of resources and active members. Owners can:</p>
+<ul>
+<li><b>Add location</b>: enter a name (for example &ldquo;Nexpreneur Karimnagar&rdquo;) and a city. It appears in the top selector at once.</li>
+<li><b>Edit</b>: rename it or change the city.</li>
+<li><b>Archive</b>: hides a location you no longer use. The system refuses while the location still has resources or active members, so nothing is left pointing at a closed space. You always need at least one location.</li>
+</ul>
+<div class="sample"><span class="tag">Sample data</span>
+<table class="data"><thead><tr><th>Location</th><th>City</th><th class="r">Resources</th><th class="r">Active members</th></tr></thead><tbody>
+<tr><td>Nexpreneur Hyderabad</td><td>Hyderabad</td><td class="r">28</td><td class="r">61</td></tr>
+<tr><td>Nexpreneur Warangal</td><td>Warangal</td><td class="r">5</td><td class="r">17</td></tr>
+<tr><td>Nexpreneur Nalgonda</td><td>Nalgonda</td><td class="r">5</td><td class="r">9</td></tr></tbody></table></div>
+
+<h2 id="s6-2">6.2 Resources: what you rent out</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Resources</div>
+<p>Resources are the things people book. Each has a <b>type</b>, a <b>location</b>, a <b>capacity</b>, a <b>price</b> and a <b>status</b>.</p>
+<table class="data"><thead><tr><th style="width:22%">Type</th><th style="width:20%">Charged</th><th>Typical example</th></tr></thead><tbody>
+<tr><td>Hot Desk</td><td>per day</td><td>Hot Desk H01 &middot; &#8377;300/day</td></tr>
+<tr><td>Dedicated Desk</td><td>per day</td><td>Dedicated Desk D01 &middot; &#8377;400/day</td></tr>
+<tr><td>Private Office</td><td>per day</td><td>Private Office P1 (6 people) &middot; &#8377;1,500/day</td></tr>
+<tr><td>Meeting Room</td><td>per hour</td><td>Meeting Room A (6 people) &middot; &#8377;800/hour</td></tr>
+<tr><td>Phone Booth</td><td>per hour</td><td>Phone Booth 1 &middot; &#8377;150/hour</td></tr>
+<tr><td>Event Space</td><td>per hour</td><td>Event Space (60 people) &middot; &#8377;6,000/hour</td></tr>
+</tbody></table>
+<p>All prices are <b>before 18% GST</b>; GST is added when someone books.</p>
+<h3>Adding resources (owners and managers)</h3>
+<ol class="steps">
+<li>Press <b>Add resource</b>.</li>
+<li>Type a <b>name</b>, choose the <b>location</b> and <b>type</b>, set <b>capacity</b> and the <b>price</b> (per hour or per day depending on the type) and the <b>status</b>.</li>
+<li>To create many at once, set <b>How many to add</b>. The system numbers them for you.</li>
+<li>Press <b>Add</b>.</li>
+</ol>
+<div class="sample"><span class="tag">Sample data</span>
+<p>Name: <b>Hot Desk H</b> &nbsp;&middot;&nbsp; Location: Nexpreneur Hyderabad &nbsp;&middot;&nbsp; Type: Hot Desk &nbsp;&middot;&nbsp; Capacity: 1 &nbsp;&middot;&nbsp; Price per day: <b>&#8377;300</b> &nbsp;&middot;&nbsp; How many: <b>16</b></p>
+<p>Result: sixteen desks named <i>Hot Desk H 01</i> to <i>Hot Desk H 16</i>, each &#8377;300 per day.</p></div>
+<h3>Status and archiving</h3>
+<table class="data"><thead><tr><th style="width:22%">Status</th><th>Effect</th></tr></thead><tbody>
+<tr><td><span class="pill g">Available</span></td><td>Can be booked.</td></tr>
+<tr><td><span class="pill o">Reserved</span></td><td>Held (for example for a long-term tenant). Not bookable.</td></tr>
+<tr><td><span class="pill r">Maintenance</span></td><td>Temporarily out of use. Not bookable. Use this instead of archiving when a room is only being repaired.</td></tr>
+<tr><td><span class="pill n">Unavailable</span></td><td>Not bookable.</td></tr>
+</tbody></table>
+<p>Change a status straight from the table with the drop-down. <b>Archive</b> removes a resource from booking and the floor map. It is blocked if the resource has upcoming bookings (cancel those first).</p>
+<div class="callout"><b class="t">Changing a price</b><p>Press <b>Edit</b>, change the price, <b>Save changes</b>. New bookings use the new price; bookings already made keep the price they were made at.</p></div>
+<div class="callout tip"><b class="t">Tip: sample resources</b><p>If the Floor map tab in Bookings is empty, owners will see an <b>Add demo resources</b> button that creates about 30 desks and rooms across your locations to explore with. You can archive them later.</p></div>

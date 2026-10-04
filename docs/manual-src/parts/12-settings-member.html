@@ -1,0 +1,74 @@
+<h1 class="chapter" id="ch23"><span class="num">Chapter 23</span>Settings: team, roles and audit log</h1>
+<p class="lead">Settings is for owners. Here you decide who works in the system, what they can do, and you can see a record of what happened.</p>
+
+<h2 id="s23-1">23.1 Team &amp; roles</h2>
+<div class="path">Sidebar <i>&rsaquo;</i> Settings <i>&rsaquo;</i> Team &amp; roles</div>
+<p>A table of everyone in the organisation (members and staff) with role, last sign-in and status.</p>
+<h3>Adding a team member</h3>
+<ol class="steps">
+<li>Press <b>Add team member</b>.</li>
+<li>Enter <b>name</b>, <b>email</b>, choose a <b>role</b> (Reception, Finance, Community Manager, Staff, Location Manager, Owner) and type a <b>temporary password</b> (8 to 72 characters).</li>
+<li>Press <b>Add member</b> and share the password privately. The person changes it on their Profile page after signing in.</li>
+</ol>
+<div class="sample"><span class="tag">Sample data</span>
+<table class="data"><thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead><tbody>
+<tr><td>Divya Nair</td><td>divya@nexpreneur.example</td><td>Reception</td></tr>
+<tr><td>Ravi Gupta</td><td>ravi@nexpreneur.example</td><td>Finance</td></tr>
+<tr><td>Sneha Iyer</td><td>sneha@nexpreneur.example</td><td>Community Manager</td></tr></tbody></table>
+<p>Divya signs in and lands on <b>Visitors</b>; her sidebar shows only Dashboard, Bookings, Calendar, Members, Resources, Visitors, Support, Notifications and Profile.</p></div>
+<h3>Changing a role or deactivating</h3>
+<ul>
+<li>Use the <b>role drop-down</b> on a person&rsquo;s row. A confirmation warns that access changes immediately.</li>
+<li><b>Deactivate</b> blocks sign-in at once; <b>Reactivate</b> restores it. Nothing is deleted.</li>
+</ul>
+<table class="data"><thead><tr><th style="width:36%">Safety rule</th><th>Why</th></tr></thead><tbody>
+<tr><td>You cannot change your <b>own</b> role or deactivate yourself.</td><td>Prevents locking yourself out. Ask another owner.</td></tr>
+<tr><td>Only a <b>Super Admin</b> can grant or change the Super Admin role.</td><td>Keeps the top role tightly held.</td></tr>
+<tr><td>Changes take effect on the very next page the person opens.</td><td>The role is checked against the database every time.</td></tr>
+</tbody></table>
+
+<h2 id="s23-2">23.2 Audit log</h2>
+<p>The second tab lists the 60 most recent recorded actions, with who did them and when: sign-ins and sign-ups, bookings created or cancelled, invoices created, payments recorded, refunds, plan price changes, member and role changes, resources and locations changed, announcements sent and more. Use it to answer &ldquo;who changed this?&rdquo;.</p>
+<div class="sample"><span class="tag">Sample audit entries</span>
+<table class="data"><tbody>
+<tr><td style="width:26%">Ravi Gupta</td><td>payment.refund:upi</td><td style="width:24%" class="r">4 Oct, 17:42</td></tr>
+<tr><td>Mohammed Sajeed</td><td>team.role:member-&gt;reception</td><td class="r">4 Oct, 11:05</td></tr>
+<tr><td>Mohammed Sajeed</td><td>plan.update:429900</td><td class="r">3 Oct, 18:20</td></tr>
+<tr><td>Divya Nair</td><td>member.add</td><td class="r">3 Oct, 10:12</td></tr></tbody></table>
+<p class="small">&ldquo;429900&rdquo; is the new Flexi price in paise (&#8377;4,299.00).</p></div>
+
+<h1 class="chapter" id="ch24"><span class="num">Chapter 24</span>The member guide (a one-page tour for members)</h1>
+<p class="lead">Print or share this chapter with your members. It covers everything a member does, in the order they will do it.</p>
+
+<h2 id="s24-1">24.1 Your first day</h2>
+<ol class="steps">
+<li><b>Set your password.</b> Open the welcome email and press <i>Set my password</i> (the link lasts 7 days). If you were given a temporary password, sign in and change it under <b>Profile</b>.</li>
+<li><b>Sign in</b> at <code>os.nexpreneur.com</code> with your password, an emailed link, or Google.</li>
+<li><b>Complete your profile</b>: phone, job title, company, emergency contact. Your job title and company are shown in the member directory.</li>
+</ol>
+
+<h2 id="s24-2">24.2 What you will find</h2>
+<table class="data"><thead><tr><th style="width:20%">Section</th><th>What you do there</th></tr></thead><tbody>
+<tr><td><b>Home</b></td><td>See your next booking, your plan and what you owe. Use the quick actions.</td></tr>
+<tr><td><b>Bookings</b></td><td>Book a desk, room, phone booth, office or event space. See and cancel your bookings. (Chapter 10)</td></tr>
+<tr><td><b>Membership</b></td><td>See your plan, price and renewal date.</td></tr>
+<tr><td><b>Payments &amp; Invoices</b></td><td>See every invoice; press <i>Pay online</i> or print a PDF. (Chapters 11&ndash;12)</td></tr>
+<tr><td><b>Events</b></td><td>Register for events; paid ones give you an invoice. (Chapter 16)</td></tr>
+<tr><td><b>Community</b></td><td>Post, like, comment, find people in the directory. (Chapter 17)</td></tr>
+<tr><td><b>Visitors</b></td><td>Invite a guest and send them the QR code. (Chapter 14)</td></tr>
+<tr><td><b>Services</b></td><td>Order printing, parking, coffee&hellip; (Chapter 18)</td></tr>
+<tr><td><b>AI Assistant</b></td><td>Ask it to find or book a space. (Chapter 22)</td></tr>
+<tr><td><b>Support</b></td><td>Ask the team for help. (Chapter 19)</td></tr>
+<tr><td><b>Notifications</b></td><td>See booking confirmations, invoices, reminders and announcements.</td></tr>
+</tbody></table>
+
+<h2 id="s24-3">24.3 Common tasks in three taps</h2>
+<table class="data"><thead><tr><th style="width:34%">I want to&hellip;</th><th>Do this</th></tr></thead><tbody>
+<tr><td>Book a desk for tomorrow</td><td>Home &rsaquo; <b>Book Desk</b> &rsaquo; pick tomorrow &rsaquo; <b>Check availability</b> &rsaquo; tap a desk &rsaquo; <b>Confirm booking</b>.</td></tr>
+<tr><td>Pay my invoice</td><td>Invoices &rsaquo; open the invoice &rsaquo; <b>Pay &#8377;&hellip; online</b>.</td></tr>
+<tr><td>Bring a guest on Friday</td><td>Visitors &rsaquo; <b>Generate QR invitation</b> &rsaquo; send the QR to your guest. Show it at reception.</td></tr>
+<tr><td>Get a receipt or tax invoice</td><td>Invoices &rsaquo; open it &rsaquo; <b>Print / Save as PDF</b>.</td></tr>
+<tr><td>Cancel a booking</td><td>Bookings &rsaquo; List &rsaquo; <b>Cancel</b>.</td></tr>
+<tr><td>Report a problem</td><td>Support &rsaquo; write the subject and details &rsaquo; <b>Send request</b>.</td></tr>
+</tbody></table>
+<div class="callout tip"><b class="t">Tip</b><p>On a phone, add the website to your home screen from the browser menu so Nexpreneur OS opens like an app.</p></div>
