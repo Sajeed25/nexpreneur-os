@@ -1,17 +1,20 @@
 "use server";
-import { and, asc, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { db, hasDb, schema } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { isFinance } from "@/lib/billing";
 import { todayIST } from "@/lib/booking";
 import { computeAnalytics, locationIdFor, RANGES, type Analytics, type RangeKey } from "@/lib/analytics";
+import { creditBalance } from "@/lib/credits";
 
 const { bookings, resources, memberships, membershipPlans, invoices, payments, leads, events, auditLogs, users } = schema;
 export type MemberHomeDTO = {
   nextBooking: { name: string; startsAt: string; endsAt: string } | null;
   membership: { plan: string; pricePaise: number; cycle: string; renewalDate: string } | null;
   owedPaise: number;
+  credits: { minutes: number; passes: number };
+  userId: string;
 };
 
 export async function getMemberHome(): Promise<{ ok: true; data: MemberHomeDTO } | { ok: false; error: string }> {
@@ -30,7 +33,7 @@ export async function getMemberHome(): Promise<{ ok: true; data: MemberHomeDTO }
     .where(and(eq(invoices.organizationId, s.org), eq(invoices.userId, s.uid), inArray(invoices.status, ["unpaid", "partial"])));
   return { ok: true, data: {
     nextBooking: b ? { name: b.name, startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString() } : null,
-    membership: m ?? null, owedPaise: Number(o.v),
+    membership: m ?? null, owedPaise: Number(o.v), credits: await creditBalance(d, s.uid), userId: s.uid,
   } };
 }
 
@@ -66,7 +69,7 @@ export async function getDashboard(range: string, loc?: string): Promise<{ ok: t
       .where(and(eq(bookings.organizationId, s.org), inArray(bookings.status, ["confirmed", "pending"]), gte(bookings.endsAt, now))).orderBy(asc(bookings.startsAt)).limit(5),
     finance ? d.select({ who: users.name, ref: invoices.number, amt: payments.amountPaise }).from(payments)
       .innerJoin(invoices, eq(invoices.id, payments.invoiceId)).innerJoin(users, eq(users.id, payments.userId))
-      .where(and(eq(payments.organizationId, s.org), eq(payments.status, "captured"))).orderBy(desc(payments.createdAt)).limit(5) : Promise.resolve(null),
+      .where(and(eq(payments.organizationId, s.org), eq(payments.status, "captured"), notInArray(payments.method, ["tds", "credit_note"]))).orderBy(desc(payments.createdAt)).limit(5) : Promise.resolve(null),
     can(s.role, "crm") ? d.select().from(leads).where(eq(leads.organizationId, s.org)).orderBy(desc(leads.createdAt)).limit(5) : Promise.resolve(null),
     can(s.role, "events") ? d.select({ title: events.title, startsAt: events.startsAt }).from(events)
       .where(and(eq(events.organizationId, s.org), eq(events.published, true), gte(events.endsAt, now))).orderBy(asc(events.startsAt)).limit(5) : Promise.resolve([]),
@@ -78,7 +81,7 @@ export async function getDashboard(range: string, loc?: string): Promise<{ ok: t
   ]);
   return { ok: true, data: {
     analytics, finance,
-    activity: acts.filter((a) => a.action !== "auth.login").slice(0, 6).map((a) => ({ text: `${a.who ?? "Someone"} ${ACTION_TEXT[a.action] ?? a.action}`, at: a.at.toISOString() })),
+    activity: acts.filter((a) => a.action !== "auth.login").slice(0, 6).map((a) => ({ text: `${a.who ?? "Someone"} ${ACTION_TEXT[a.action] ?? ACTION_TEXT[a.action.split(":")[0]] ?? a.action}`, at: a.at.toISOString() })),
     upcomingBookings: bks.map((b) => ({ who: b.who, what: b.what, startsAt: b.startsAt.toISOString() })),
     recentPayments: pays?.map((p) => ({ who: p.who, ref: p.ref, amountPaise: p.amt })) ?? null,
     events: evs.map((e) => ({ title: e.title, startsAt: e.startsAt.toISOString() })),

@@ -4,6 +4,7 @@ import { Plus, X } from "lucide-react";
 import { Button, Card, PageHeader } from "@/components/ui";
 import { addActivity, createLead, listActivities, listLeads, moveLead, type ActivityDTO, type LeadDTO } from "./actions";
 import { LEAD_STAGES, STAGE_LABEL } from "./stages";
+import { ToursPanel } from "./tours-panel";
 import { rupees } from "@/lib/booking";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,8 @@ export function CrmApp() {
       <PageHeader title="CRM" sub={`${leads.length} leads · pipeline value ${rupees(total)}`}
         actions={<Button onClick={() => setShowForm(!showForm)}><Plus size={18} />New lead</Button>} />
       {error && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
+
+      <ToursPanel onChange={() => setTick((t) => t + 1)} />
 
       {showForm && (
         <Card className="mb-6">

@@ -7,6 +7,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { useLocation } from "@/components/shell/app-shell";
 import { createInvoice, listInvoices, listMemberOptions, type InvoiceRow, type MemberOpt } from "./actions";
 import { listLocationOptions } from "./extras";
+import { ExportCard } from "./export-card";
 import { listCompanyOptions } from "../companies/actions";
 import { INV_LABEL, INV_TONE, displayStatus, gst, toPaise } from "@/lib/billing";
 import { rupees, todayIST } from "@/lib/booking";
@@ -83,6 +84,7 @@ export function InvoicesApp({ canCreate }: { canCreate: boolean }) {
       <PageHeader title="Invoices" sub="GST-ready invoices and what's still owed."
         actions={canCreate && <Button onClick={() => setOpen(!open)}><Plus size={18} />New invoice</Button>} />
       {error && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
+      {canCreate && <ExportCard />}
 
       {open && (
         <Card className="mb-6">

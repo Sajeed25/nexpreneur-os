@@ -3,12 +3,19 @@ import * as React from "react";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
-import { addTeamMember, listAudit, listTeam, setActive, setRole, type AuditRow, type TeamRow } from "./actions";
+import { addTeamMember, listAudit, listTeam, resetTwoFactor, setActive, setRole, type AuditRow, type TeamRow } from "./actions";
+import { BusinessTab, IntegrationsTab, PoliciesTab } from "./business-tabs";
+import { DoorsTab } from "./doors-tab";
 
 const field = "mt-1.5 h-11 w-full rounded-xl border bg-surface px-3 text-[15px] outline-none focus:border-accent";
+type Tab = "team" | "audit" | "business" | "policies" | "doors" | "integrations";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "team", label: "Team & roles" }, { id: "business", label: "Business profile" }, { id: "policies", label: "Policies" },
+  { id: "doors", label: "Door access" }, { id: "integrations", label: "Integrations" }, { id: "audit", label: "Audit log" },
+];
 
 export function SettingsApp({ canGrantSuper }: { canGrantSuper: boolean }) {
-  const [tab, setTab] = React.useState<"team" | "audit">("team");
+  const [tab, setTab] = React.useState<Tab>("team");
   const [team, setTeam] = React.useState<TeamRow[]>([]);
   const [audit, setAudit] = React.useState<AuditRow[]>([]);
   const [error, setError] = React.useState<string | null>(null);
@@ -53,9 +60,9 @@ export function SettingsApp({ canGrantSuper }: { canGrantSuper: boolean }) {
   return (
     <>
       <PageHeader title="Settings" sub="Your team and who can do what." actions={tab === "team" && <Button onClick={() => setShowAdd(!showAdd)}>Add team member</Button>} />
-      <div role="tablist" className="mb-4 inline-flex gap-1 rounded-xl border bg-surface p-1">
-        {(["team", "audit"] as const).map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("h-9 rounded-lg px-4 text-sm", tab === t ? "bg-primary text-primary-fg" : "text-muted hover:text-fg")}>{t === "team" ? "Team & roles" : "Audit log"}</button>
+      <div role="tablist" className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-xl border bg-surface p-1 sm:inline-flex">
+        {TABS.map((t) => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cn("h-9 shrink-0 rounded-lg px-4 text-sm", tab === t.id ? "bg-primary text-primary-fg" : "text-muted hover:text-fg")}>{t.label}</button>
         ))}
       </div>
       {error && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
@@ -86,14 +93,22 @@ export function SettingsApp({ canGrantSuper }: { canGrantSuper: boolean }) {
                     </select>
                   </td>
                   <td className="text-muted">{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "Never"}</td>
-                  <td><Badge tone={u.active ? "green" : "grey"}>{u.active ? "Active" : "Deactivated"}</Badge></td>
-                  <td className="pr-4 text-right">{!u.isMe && <Button variant="ghost" size="sm" onClick={() => toggle(u)}>{u.active ? "Deactivate" : "Reactivate"}</Button>}</td>
+                  <td><div className="flex flex-wrap gap-1"><Badge tone={u.active ? "green" : "grey"}>{u.active ? "Active" : "Deactivated"}</Badge>{u.twoFactor && <Badge tone="blue">2FA</Badge>}</div></td>
+                  <td className="pr-4 text-right">
+                    {!u.isMe && u.twoFactor && <Button variant="ghost" size="sm" onClick={async () => { if (!window.confirm(`Reset two-factor for ${u.name}? They'll sign in with just a password until they set it up again.`)) return; const r = await resetTwoFactor(u.id); if (!r.ok) setError(r.error); else setTick((t) => t + 1); }}>Reset 2FA</Button>}
+                    {!u.isMe && <Button variant="ghost" size="sm" onClick={() => toggle(u)}>{u.active ? "Deactivate" : "Reactivate"}</Button>}
+                  </td>
                 </tr>
               ))}</tbody>
             </table>
           </Card>
         )}
       </>}
+
+      {tab === "business" && <BusinessTab />}
+      {tab === "policies" && <PoliciesTab />}
+      {tab === "doors" && <DoorsTab />}
+      {tab === "integrations" && <IntegrationsTab />}
 
       {tab === "audit" && (
         <Card className="py-1">

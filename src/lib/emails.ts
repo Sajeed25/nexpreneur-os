@@ -5,9 +5,9 @@ import { rupees } from "@/lib/booking";
 export const esc = (s: string | number | null | undefined) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-const wrap = (title: string, body: string) =>
+export const wrap = (title: string, body: string) =>
   `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;color:#1c1c1e"><h2 style="margin:0 0 16px">${esc(title)}</h2>${body}<p style="color:#888;font-size:12px;margin-top:28px">Sent by Nexpreneur OS</p></div>`;
-const button = (href: string, label: string) =>
+export const button = (href: string, label: string) =>
   `<p><a href="${esc(href)}" style="display:inline-block;background:#5b4df5;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">${esc(label)}</a></p>`;
 
 export function magicLinkEmail(name: string, link: string) {

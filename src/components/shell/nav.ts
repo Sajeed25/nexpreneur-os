@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CalendarCheck, CalendarDays, Users, Building2, BadgeCheck, MapPin, Armchair,
   CreditCard, FileText, DoorOpen, Target, PartyPopper, MessagesSquare, ShoppingBag, BarChart3,
-  Bot, Bell, Settings, LifeBuoy, UserCircle, type LucideIcon,
+  Bot, Bell, Settings, LifeBuoy, UserCircle, Gift, type LucideIcon,
 } from "lucide-react";
 import type { Section } from "@/lib/rbac";
 
@@ -20,6 +20,7 @@ export const NAV: { section: Section; label: string; icon: LucideIcon; href: str
   { section: "crm", label: "CRM", icon: Target, href: "/crm" },
   { section: "events", label: "Events", icon: PartyPopper, href: "/events" },
   { section: "community", label: "Community", icon: MessagesSquare, href: "/community" },
+  { section: "marketplace", label: "Perks & marketplace", icon: Gift, href: "/marketplace" },
   { section: "services", label: "Services", icon: ShoppingBag, href: "/services" },
   { section: "analytics", label: "Analytics", icon: BarChart3, href: "/analytics" },
   { section: "ai", label: "AI Assistant", icon: Bot, href: "/ai" },

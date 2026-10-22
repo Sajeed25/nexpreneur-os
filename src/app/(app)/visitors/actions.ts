@@ -89,6 +89,20 @@ export async function resendInvite(id: string): Promise<Result<null>> {
   return r.sent ? { ok: true, data: null } : { ok: false, error: r.reason };
 }
 
+export type BadgeDTO = { name: string; host: string; org: string; date: string; time: string; purpose: string; status: string; qr: string };
+
+/** What a printed visitor badge shows. The front desk can print any; a host can print their own visitors' badges. */
+export async function getBadge(id: string): Promise<Result<BadgeDTO>> {
+  const s = await ctx();
+  if (!s || !z.string().uuid().safeParse(id).success) return { ok: false, error: s ? "Visitor not found" : NO };
+  const [row] = await db().select({ v: visitorInvites, h: users }).from(visitorInvites).innerJoin(users, eq(users.id, visitorInvites.hostUserId))
+    .where(and(eq(visitorInvites.id, id), eq(visitorInvites.organizationId, s.org)));
+  if (!row || (!DESK.includes(s.role) && row.v.hostUserId !== s.uid)) return { ok: false, error: "Visitor not found" };
+  if (row.v.status === "cancelled") return { ok: false, error: "This invitation was cancelled." };
+  const [o] = await db().select({ name: organizations.name }).from(organizations).where(eq(organizations.id, s.org));
+  return { ok: true, data: { name: row.v.name, host: row.h.name, org: o?.name ?? "Nexpreneur", date: row.v.visitDate, time: row.v.visitTime, purpose: row.v.purpose ?? "", status: row.v.status, qr: await QRCode.toDataURL(row.v.token, { width: 260, margin: 1 }) } };
+}
+
 const act = z.object({ id: z.string().uuid().optional(), token: z.string().regex(/^[0-9a-f]{32}$/).optional(), action: z.enum(["check_in", "check_out", "cancel"]) });
 /** Reception check-in/out by row id or by scanned/typed QR code. Hosts can cancel their own invitations. */
 export async function updateVisitor(input: z.infer<typeof act>): Promise<Result<{ name: string }>> {

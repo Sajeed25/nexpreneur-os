@@ -1,31 +1,32 @@
-import { hasDb } from "@/lib/db/config";
-import { safeEq } from "@/lib/payments-server";
+import { cronGuard, errorCode } from "@/lib/cron";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+/** Runs one job and reports its result; a failing job is reported but doesn't stop the others. */
+async function job<T>(name: string, fn: () => Promise<T>): Promise<T | { error: string }> {
+  try { return await fn(); } catch (e) { console.error(`daily job "${name}" failed`, e); return { error: errorCode(e) }; }
+}
+
 /**
- * Daily job: renewal invoices + payment reminders.
+ * Daily job: renewal invoices, payment reminders, plan credits, waitlist housekeeping, weekly reports and the outbox.
  * Call it once a day with:  curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/daily
- * It is safe to call more than once; renewals and reminders are claimed under locks.
+ * It is safe to call more than once; every job claims its work under locks.
  */
 async function run(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || secret === "placeholder" || secret.length < 16 || !hasDb()) return new Response("Not configured", { status: 503 });
-  const given = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!safeEq(given, secret)) return new Response("Unauthorized", { status: 401 });
+  const denied = cronGuard(req);
+  if (denied) return denied;
 
-  try {
-    const { runRenewals, runReminders } = await import("@/lib/daily-jobs");
-    const renewals = await runRenewals();
-    const reminders = await runReminders();
-    return Response.json({ ok: true, renewals, reminders });
-  } catch (e) {
-    // Report a short code (no secrets) so a failing schedule is easy to diagnose, e.g. ER_BAD_FIELD_ERROR = run the latest SQL file.
-    const o = e as { code?: string; cause?: { code?: string }; name?: string };
-    console.error("daily job failed", e);
-    return Response.json({ ok: false, error: o.code ?? o.cause?.code ?? o.name ?? "unknown" }, { status: 500 });
-  }
+  const jobs = await import("@/lib/daily-jobs");
+  const renewals = await job("renewals", () => jobs.runRenewals());
+  const reminders = await job("reminders", () => jobs.runReminders());
+  const credits = await job("credits", () => jobs.runCreditGrants());
+  const waitlistClosed = await job("waitlist", async () => (await import("@/lib/waitlist")).expireWaitlist());
+  const weeklyReports = await job("weeklyReports", async () => (await import("@/lib/reports")).runWeeklyReports());
+  const outbox = await job("outbox", async () => (await import("@/lib/messaging")).drainOutbox(100));
+  const results = { renewals, reminders, credits, waitlistClosed, weeklyReports, outbox };
+  const failed = Object.entries(results).filter(([, v]) => v && typeof v === "object" && "error" in v).map(([k]) => k);
+  return Response.json({ ok: failed.length === 0, failed, ...results }, { status: failed.length ? 500 : 200 });
 }
 
 export const GET = run;

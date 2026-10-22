@@ -21,6 +21,15 @@ export async function getAnalytics(range: string, loc?: string): Promise<Result<
   return { ok: true, data: await computeAnalytics(s.org, range, { finance: true, locationId: await locationIdFor(s.org, loc) }) };
 }
 
+/** The next 14 days of expected occupancy, from the last eight weeks of bookings. */
+export async function getForecast(loc?: string): Promise<Result<import("@/lib/forecast-math").Forecast>> {
+  const s = await ctx();
+  if (!s) return { ok: false, error: NO };
+  const { loadForecast } = await import("@/lib/forecast");
+  const id = await locationIdFor(s.org, loc);
+  return { ok: true, data: await loadForecast(s.org, id === "none" ? "00000000-0000-0000-0000-000000000000" : id) };
+}
+
 // Spreadsheet apps run text starting with = + - @ as formulas. Neutralise it, then quote.
 const cell = (v: string | number) => {
   const t = String(v);

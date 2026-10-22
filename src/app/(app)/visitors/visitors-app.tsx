@@ -72,6 +72,7 @@ export function VisitorsApp({ desk }: { desk: boolean }) {
       </div>
       <div className="flex gap-2">
         {v.status === "invited" && <Button variant="secondary" size="sm" onClick={() => setShown({ name: v.name, token: v.token })}>Show QR</Button>}
+        {(v.status === "invited" || v.status === "checked_in") && v.date === today && <a href={`/visitors/${v.id}/badge`} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center rounded-xl border px-3 text-sm font-medium hover:bg-surface-2">Print badge</a>}
         {v.status === "invited" && v.email && <Button variant="secondary" size="sm" onClick={async () => { setError(null); const r = await resendInvite(v.id); if (!r.ok) setError(r.error); else setInfo(`Invitation re-sent to ${v.email}.`); }}>Resend</Button>}
         {desk && v.status === "invited" && v.date === today && <Button size="sm" onClick={() => run({ id: v.id, action: "check_in" }, "checked in")}>Check in</Button>}
         {desk && v.status === "checked_in" && <Button size="sm" onClick={() => run({ id: v.id, action: "check_out" }, "checked out")}>Check out</Button>}

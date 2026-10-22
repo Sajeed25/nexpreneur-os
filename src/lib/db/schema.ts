@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, date, datetime, index, customType, int, json, mysqlEnum, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { bigint, boolean, date, datetime, index, customType, int, json, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 import { ROLES } from "@/lib/rbac";
 
 const id = () => varchar("id", { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID());
@@ -10,6 +10,18 @@ export const organizations = mysqlTable("organizations", {
   name: varchar("name", { length: 160 }).notNull(),
   slug: varchar("slug", { length: 80 }).notNull().unique(),
   accentColor: varchar("accent_color", { length: 9 }).default("#5b4df5"),
+  legalName: varchar("legal_name", { length: 160 }),
+  gstin: varchar("gstin", { length: 20 }),
+  address: varchar("address", { length: 500 }),
+  stateCode: varchar("state_code", { length: 2 }),
+  pincode: varchar("pincode", { length: 10 }),
+  phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 190 }),
+  refundApprovalPaise: bigint("refund_approval_paise", { mode: "number" }).notNull().default(1_000_000),
+  require2faRoles: varchar("require_2fa_roles", { length: 200 }).notNull().default(""),
+  onboardingItems: varchar("onboarding_items", { length: 120 }).notNull().default("kyc,agreement"),
+  onboardingBlocks: boolean("onboarding_blocks").notNull().default(false),
+  agreementText: varchar("agreement_text", { length: 4000 }),
   createdAt: created(),
   deletedAt: timestamp("deleted_at"),
 });
@@ -19,6 +31,14 @@ export const locations = mysqlTable("locations", {
   organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id),
   name: varchar("name", { length: 120 }).notNull(),
   city: varchar("city", { length: 120 }),
+  legalName: varchar("legal_name", { length: 160 }),
+  gstin: varchar("gstin", { length: 20 }),
+  address: varchar("address", { length: 500 }),
+  phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 190 }),
+  logoImageId: varchar("logo_image_id", { length: 36 }),
+  brandColor: varchar("brand_color", { length: 9 }),
+  invoiceFooter: varchar("invoice_footer", { length: 500 }),
   createdAt: created(),
   deletedAt: timestamp("deleted_at"),
 }, (t) => [index("loc_org").on(t.organizationId)]);
@@ -40,9 +60,15 @@ export const users = mysqlTable("users", {
   lastLoginAt: timestamp("last_login_at"),
   passwordChangedAt: datetime("password_changed_at"),
   companyId: varchar("company_id", { length: 36 }),
+  waOptIn: boolean("wa_opt_in").notNull().default(false),
+  smsOptIn: boolean("sms_opt_in").notNull().default(false),
+  weeklyReport: boolean("weekly_report").notNull().default(false),
+  totpSecret: varchar("totp_secret", { length: 200 }),
+  totpEnabledAt: datetime("totp_enabled_at"),
+  calendarToken: varchar("calendar_token", { length: 40 }),
   createdAt: created(),
   deletedAt: timestamp("deleted_at"),
-}, (t) => [uniqueIndex("users_email").on(t.email), index("users_org").on(t.organizationId)]);
+}, (t) => [uniqueIndex("users_email").on(t.email), index("users_org").on(t.organizationId), uniqueIndex("users_cal_token").on(t.calendarToken)]);
 
 export const membershipPlans = mysqlTable("membership_plans", {
   id: id(),
@@ -83,8 +109,12 @@ export const bookings = mysqlTable("bookings", {
   subtotalPaise: bigint("subtotal_paise", { mode: "number" }).notNull(),
   taxPaise: bigint("tax_paise", { mode: "number" }).notNull(),
   totalPaise: bigint("total_paise", { mode: "number" }).notNull(),
+  creditMinutes: int("credit_minutes").notNull().default(0),
+  creditPasses: int("credit_passes").notNull().default(0),
+  seriesId: varchar("series_id", { length: 36 }),
   createdAt: created(),
 }, (t) => [
+  index("bk_series").on(t.seriesId),
   index("bk_res_time").on(t.resourceId, t.startsAt, t.endsAt),
   index("bk_org_loc_time").on(t.organizationId, t.locationId, t.startsAt),
   index("bk_user").on(t.userId),
@@ -100,6 +130,7 @@ export const memberships = mysqlTable("memberships", {
   status: mysqlEnum("status", ["active", "paused", "cancelled", "expired"]).notNull().default("active"),
   locationId: varchar("location_id", { length: 36 }),
   cancelledAt: datetime("cancelled_at"),
+  creditsCycleStart: date("credits_cycle_start", { mode: "string" }),
   createdAt: created(),
 }, (t) => [index("ms_org_renewal").on(t.organizationId, t.renewalDate), index("ms_user").on(t.userId)]);
 
@@ -126,6 +157,14 @@ export const invoices = mysqlTable("invoices", {
   emailedAt: datetime("emailed_at"),
   lastRemindedAt: datetime("last_reminded_at"),
   reminderCount: int("reminder_count").notNull().default(0),
+  payLinkId: varchar("pay_link_id", { length: 40 }),
+  payLinkUrl: varchar("pay_link_url", { length: 300 }),
+  irn: varchar("irn", { length: 64 }),
+  irnAckNo: varchar("irn_ack_no", { length: 30 }),
+  irnAckDate: datetime("irn_ack_date"),
+  irnSignedQr: text("irn_signed_qr"),
+  irnStatus: varchar("irn_status", { length: 12 }),
+  irnError: varchar("irn_error", { length: 300 }),
   createdAt: created(),
 }, (t) => [uniqueIndex("inv_org_number").on(t.organizationId, t.number), index("inv_user").on(t.userId), index("inv_org_due").on(t.organizationId, t.dueDate)]);
 
@@ -145,7 +184,7 @@ export const payments = mysqlTable("payments", {
   invoiceId: varchar("invoice_id", { length: 36 }).notNull().references(() => invoices.id),
   userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
   amountPaise: bigint("amount_paise", { mode: "number" }).notNull(),
-  method: mysqlEnum("method", ["cash", "upi", "bank", "card", "razorpay"]).notNull(),
+  method: mysqlEnum("method", ["cash", "upi", "bank", "card", "razorpay", "tds", "credit_note"]).notNull(),
   status: mysqlEnum("status", ["captured", "failed", "refunded"]).notNull().default("captured"),
   razorpayOrderId: varchar("razorpay_order_id", { length: 40 }),
   razorpayPaymentId: varchar("razorpay_payment_id", { length: 40 }),
@@ -367,3 +406,220 @@ export const auditLogs =mysqlTable("audit_logs", {
   entityId: varchar("entity_id", { length: 36 }),
   createdAt: created(),
 }, (t) => [index("audit_org_time").on(t.organizationId, t.createdAt)]);
+
+// ---------- Growth pack ----------
+
+/** Room hours (in minutes) and day passes. The balance is the sum of deltas; expiry is written as a negative entry. */
+export const creditLedger = mysqlTable("credit_ledger", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  kind: mysqlEnum("kind", ["room_min", "day_pass"]).notNull(),
+  delta: int("delta").notNull(),
+  reason: mysqlEnum("reason", ["grant", "use", "refund", "expire", "adjust"]).notNull(),
+  bookingId: varchar("booking_id", { length: 36 }),
+  membershipId: varchar("membership_id", { length: 36 }),
+  note: varchar("note", { length: 200 }),
+  createdBy: varchar("created_by", { length: 36 }),
+  createdAt: created(),
+}, (t) => [index("cl_user_kind").on(t.userId, t.kind), index("cl_booking").on(t.bookingId)]);
+
+export const bookingWaitlist = mysqlTable("booking_waitlist", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  locationId: varchar("location_id", { length: 36 }).notNull(),
+  kind: varchar("kind", { length: 20 }).notNull(),
+  startsAt: datetime("starts_at").notNull(),
+  endsAt: datetime("ends_at").notNull(),
+  status: mysqlEnum("status", ["waiting", "notified", "booked", "cancelled", "expired"]).notNull().default("waiting"),
+  notifiedAt: datetime("notified_at"),
+  createdAt: created(),
+}, (t) => [index("wl_loc_kind").on(t.locationId, t.kind, t.status), index("wl_user").on(t.userId)]);
+
+/** Outbound WhatsApp / SMS / web-push messages, sent by a background pass so a slow provider never blocks a request. */
+export const messageOutbox = mysqlTable("message_outbox", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  channel: mysqlEnum("channel", ["whatsapp", "sms", "push"]).notNull(),
+  toAddr: varchar("to_addr", { length: 40 }),
+  title: varchar("title", { length: 160 }).notNull(),
+  body: varchar("body", { length: 500 }),
+  link: varchar("link", { length: 200 }),
+  status: mysqlEnum("status", ["queued", "sent", "failed", "skipped"]).notNull().default("queued"),
+  attempts: int("attempts").notNull().default(0),
+  error: varchar("error", { length: 200 }),
+  providerId: varchar("provider_id", { length: 80 }),
+  createdAt: created(),
+  sentAt: datetime("sent_at"),
+}, (t) => [index("ob_status_time").on(t.status, t.createdAt), index("ob_user").on(t.userId)]);
+
+export const pushSubscriptions = mysqlTable("push_subscriptions", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  endpoint: varchar("endpoint", { length: 600 }).notNull(),
+  endpointHash: varchar("endpoint_hash", { length: 64 }).notNull(),
+  p256dh: varchar("p256dh", { length: 120 }).notNull(),
+  auth: varchar("auth", { length: 60 }).notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("ps_endpoint").on(t.endpointHash), index("ps_user").on(t.userId)]);
+
+export const creditNotes = mysqlTable("credit_notes", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  invoiceId: varchar("invoice_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  number: varchar("number", { length: 30 }).notNull(),
+  issueDate: date("issue_date", { mode: "string" }).notNull(),
+  subtotalPaise: bigint("subtotal_paise", { mode: "number" }).notNull(),
+  cgstPaise: bigint("cgst_paise", { mode: "number" }).notNull().default(0),
+  sgstPaise: bigint("sgst_paise", { mode: "number" }).notNull().default(0),
+  igstPaise: bigint("igst_paise", { mode: "number" }).notNull().default(0),
+  totalPaise: bigint("total_paise", { mode: "number" }).notNull(),
+  reason: varchar("reason", { length: 255 }),
+  createdBy: varchar("created_by", { length: 36 }),
+  createdAt: created(),
+}, (t) => [uniqueIndex("cn_org_number").on(t.organizationId, t.number), index("cn_invoice").on(t.invoiceId)]);
+
+export const creditNoteItems = mysqlTable("credit_note_items", {
+  id: id(),
+  creditNoteId: varchar("credit_note_id", { length: 36 }).notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  hsnSac: varchar("hsn_sac", { length: 12 }).notNull().default("997212"),
+  qty: int("qty").notNull().default(1),
+  unitPaise: bigint("unit_paise", { mode: "number" }).notNull(),
+  taxPct: int("tax_pct").notNull().default(18),
+}, (t) => [index("cni_note").on(t.creditNoteId)]);
+
+export const autopayMandates = mysqlTable("autopay_mandates", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  membershipId: varchar("membership_id", { length: 36 }).notNull(),
+  rzpPlanId: varchar("rzp_plan_id", { length: 40 }),
+  rzpSubscriptionId: varchar("rzp_subscription_id", { length: 40 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("created"),
+  shortUrl: varchar("short_url", { length: 300 }),
+  createdAt: created(),
+}, (t) => [uniqueIndex("am_sub").on(t.rzpSubscriptionId), index("am_membership").on(t.membershipId)]);
+
+export const doors = mysqlTable("doors", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  locationId: varchar("location_id", { length: 36 }).notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  keyHash: varchar("key_hash", { length: 64 }).notNull(),
+  active: boolean("active").notNull().default(true),
+  lastSeenAt: datetime("last_seen_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("door_key").on(t.keyHash), index("door_org").on(t.organizationId)]);
+
+export const accessCredentials = mysqlTable("access_credentials", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  identifierHash: varchar("identifier_hash", { length: 64 }).notNull(),
+  label: varchar("label", { length: 60 }),
+  active: boolean("active").notNull().default(true),
+  createdAt: created(),
+}, (t) => [uniqueIndex("ac_hash").on(t.organizationId, t.identifierHash), index("ac_user").on(t.userId)]);
+
+export const accessEvents = mysqlTable("access_events", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  doorId: varchar("door_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }),
+  credential: varchar("credential", { length: 10 }).notNull(),
+  result: mysqlEnum("result", ["allowed", "denied"]).notNull(),
+  reason: varchar("reason", { length: 80 }),
+  createdAt: created(),
+}, (t) => [index("ae_org_time").on(t.organizationId, t.createdAt), index("ae_user").on(t.userId)]);
+
+export const tours = mysqlTable("tours", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  leadId: varchar("lead_id", { length: 36 }).notNull(),
+  locationId: varchar("location_id", { length: 36 }).notNull(),
+  startsAt: datetime("starts_at").notNull(),
+  status: mysqlEnum("status", ["scheduled", "completed", "cancelled", "no_show"]).notNull().default("scheduled"),
+  createdAt: created(),
+}, (t) => [index("tour_loc_time").on(t.locationId, t.startsAt), index("tour_lead").on(t.leadId)]);
+
+export const memberOnboarding = mysqlTable("member_onboarding", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  item: varchar("item", { length: 20 }).notNull(),
+  status: mysqlEnum("status", ["pending", "done", "waived"]).notNull().default("pending"),
+  note: varchar("note", { length: 255 }),
+  refInvoiceId: varchar("ref_invoice_id", { length: 36 }),
+  doneBy: varchar("done_by", { length: 36 }),
+  doneAt: datetime("done_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("mo_user_item").on(t.userId, t.item), index("mo_ref_invoice").on(t.refInvoiceId)]);
+
+export const refundRequests = mysqlTable("refund_requests", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  paymentId: varchar("payment_id", { length: 36 }).notNull(),
+  invoiceId: varchar("invoice_id", { length: 36 }).notNull(),
+  amountPaise: bigint("amount_paise", { mode: "number" }).notNull(),
+  reason: varchar("reason", { length: 255 }),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "cancelled"]).notNull().default("pending"),
+  requestedBy: varchar("requested_by", { length: 36 }).notNull(),
+  decidedBy: varchar("decided_by", { length: 36 }),
+  decidedAt: datetime("decided_at"),
+  decisionNote: varchar("decision_note", { length: 255 }),
+  createdAt: created(),
+}, (t) => [index("rr_org_status").on(t.organizationId, t.status), index("rr_payment").on(t.paymentId)]);
+
+export const recoveryCodes = mysqlTable("recovery_codes", {
+  id: id(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  codeHash: varchar("code_hash", { length: 64 }).notNull(),
+  usedAt: datetime("used_at"),
+  createdAt: created(),
+}, (t) => [index("rc_user").on(t.userId)]);
+
+export const reportRuns = mysqlTable("report_runs", {
+  id: id(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  weekStart: date("week_start", { mode: "string" }).notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("rr_user_week").on(t.userId, t.weekStart)]);
+
+export const marketplaceListings = mysqlTable("marketplace_listings", {
+  id: id(),
+  organizationId: varchar("organization_id", { length: 36 }).notNull(),
+  authorId: varchar("author_id", { length: 36 }).notNull(),
+  kind: mysqlEnum("kind", ["perk", "offer", "request"]).notNull(),
+  title: varchar("title", { length: 160 }).notNull(),
+  description: varchar("description", { length: 2000 }),
+  priceText: varchar("price_text", { length: 80 }),
+  category: varchar("category", { length: 40 }),
+  perkCode: varchar("perk_code", { length: 80 }),
+  link: varchar("link", { length: 300 }),
+  validUntil: date("valid_until", { mode: "string" }),
+  imageId: varchar("image_id", { length: 36 }),
+  active: boolean("active").notNull().default(true),
+  redeemCount: int("redeem_count").notNull().default(0),
+  createdAt: created(),
+  deletedAt: timestamp("deleted_at"),
+}, (t) => [index("ml_org_kind").on(t.organizationId, t.kind, t.createdAt)]);
+
+export const listingContacts = mysqlTable("listing_contacts", {
+  id: id(),
+  listingId: varchar("listing_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  message: varchar("message", { length: 500 }),
+  createdAt: created(),
+}, (t) => [index("lc_listing").on(t.listingId, t.createdAt)]);
+
+export const perkRedemptions = mysqlTable("perk_redemptions", {
+  id: id(),
+  listingId: varchar("listing_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("pr_listing_user").on(t.listingId, t.userId)]);

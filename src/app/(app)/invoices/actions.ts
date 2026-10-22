@@ -8,9 +8,10 @@ import { can } from "@/lib/rbac";
 import { CYCLE_MONTHS, addMonths, gst, invoiceNumber, isFinance, isManager, toPaise, SELLER_STATE, type Line } from "@/lib/billing";
 import { todayIST } from "@/lib/booking";
 import { CouponError, issueInvoice } from "@/lib/invoicing";
+import { grantForMembership } from "@/lib/credits";
 import { emailInvoice } from "@/lib/invoice-mail";
 import { smtpConfigured } from "@/lib/mailer";
-import { applyPayment, rzpAuth, rzpKeys, recordRazorpay, safeEq, type Tx } from "@/lib/payments-server";
+import { applyPayment, rzpAuth, rzpBase, rzpKeys, recordRazorpay, safeEq, type Tx } from "@/lib/payments-server";
 
 const { users, membershipPlans, memberships, invoices, invoiceItems, payments, organizations, auditLogs, companies, refunds, locations } = schema;
 
@@ -26,7 +27,7 @@ async function ctx(section: "memberships" | "invoices" | "payments"): Promise<Se
 const fail = (error: string): { ok: false; error: string } => ({ ok: false, error });
 
 // ---------- Plans & memberships ----------
-export type PlanDTO = { id: string; name: string; pricePaise: number; billingCycle: string; benefits: string[] };
+export type PlanDTO = { id: string; name: string; pricePaise: number; billingCycle: string; benefits: string[]; bookingHours: number; dayPasses: number };
 export type MemberOpt = { id: string; name: string; email: string };
 export type MembershipDTO = { id: string; userId: string; who: string; plan: string; startDate: string; renewalDate: string; status: string };
 
@@ -35,12 +36,13 @@ export async function listPlans(): Promise<Result<PlanDTO[]>> {
   if (!s) return fail(NO_ACCESS);
   const rows = await db().select().from(membershipPlans)
     .where(and(eq(membershipPlans.organizationId, s.org), isNull(membershipPlans.deletedAt))).orderBy(membershipPlans.pricePaise);
-  return { ok: true, data: rows.map((p) => ({ id: p.id, name: p.name, pricePaise: p.pricePaise, billingCycle: p.billingCycle, benefits: p.benefits ?? [] })) };
+  return { ok: true, data: rows.map((p) => ({ id: p.id, name: p.name, pricePaise: p.pricePaise, billingCycle: p.billingCycle, benefits: p.benefits ?? [], bookingHours: p.bookingCredits ?? 0, dayPasses: p.includedDays ?? 0 })) };
 }
 
 const planIn = z.object({
   name: z.string().trim().min(2).max(120), price: z.number().min(0).max(10_000_000),
   cycle: z.enum(["monthly", "quarterly", "yearly"]), benefits: z.array(z.string().trim().min(1).max(120)).max(12),
+  bookingHours: z.number().int().min(0).max(1000).optional(), dayPasses: z.number().int().min(0).max(400).optional(),
 });
 export async function createPlan(input: z.infer<typeof planIn>): Promise<Result<null>> {
   const s = await ctx("memberships");
@@ -48,7 +50,7 @@ export async function createPlan(input: z.infer<typeof planIn>): Promise<Result<
   if (!isManager(s.role)) return fail(FORBIDDEN);
   const p = planIn.safeParse(input);
   if (!p.success) return fail("Check the plan details");
-  await db().insert(membershipPlans).values({ organizationId: s.org, name: p.data.name, pricePaise: toPaise(p.data.price), billingCycle: p.data.cycle, benefits: p.data.benefits });
+  await db().insert(membershipPlans).values({ organizationId: s.org, name: p.data.name, pricePaise: toPaise(p.data.price), billingCycle: p.data.cycle, benefits: p.data.benefits, bookingCredits: p.data.bookingHours || null, includedDays: p.data.dayPasses || null });
   return { ok: true, data: null };
 }
 
@@ -90,7 +92,9 @@ export async function assignMembership(input: z.infer<typeof assignIn>): Promise
       if (!plan || !member) throw new Error("NOT_FOUND");
       const renewal = addMonths(p.data.startDate, CYCLE_MONTHS[plan.billingCycle] ?? 1);
       const locationId = await resolveLocation(tx, s.org, p.data.locationId);
-      await tx.insert(memberships).values({ organizationId: s.org, userId: member.id, planId: plan.id, startDate: p.data.startDate, renewalDate: renewal, locationId });
+      const membershipId = crypto.randomUUID();
+      await tx.insert(memberships).values({ id: membershipId, organizationId: s.org, userId: member.id, planId: plan.id, startDate: p.data.startDate, renewalDate: renewal, locationId });
+      await grantForMembership(tx, membershipId); // this cycle's room hours / day passes, if the plan includes any
       return issueInvoice(tx, s, member.id, [{ description: `${plan.name} membership (${p.data.startDate} to ${renewal})`, qty: 1, unitPaise: plan.pricePaise, taxPct: 18 }], p.data.startDate, false, null, 7, { couponCode: p.data.couponCode || null, locationId });
     });
     if (p.data.email) await emailInvoice(s.org, invoiceId);
@@ -212,6 +216,7 @@ export async function voidInvoice(id: string): Promise<Result<null>> {
   const [inv] = await db().select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.organizationId, s.org)));
   if (!inv) return fail("Invoice not found");
   if (inv.paidPaise > 0) return fail("This invoice already has payments. Refund them before voiding.");
+  if (inv.irnStatus === "generated") return fail("This invoice has an e-invoice (IRN). Cancel the IRN first, or issue a credit note.");
   await db().update(invoices).set({ status: "void" }).where(eq(invoices.id, id));
   await db().insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: "invoice.void", entity: "invoice", entityId: id });
   return { ok: true, data: null };
@@ -241,7 +246,7 @@ export async function createRazorpayOrder(invoiceId: string): Promise<Result<{ o
   if (!inv || (!isFinance(s.role) && inv.userId !== s.uid)) return fail("Invoice not found");
   const due = inv.totalPaise - inv.paidPaise;
   if (inv.status === "void" || due <= 0) return fail("Nothing to pay on this invoice");
-  const res = await fetch("https://api.razorpay.com/v1/orders", {
+  const res = await fetch(`${rzpBase()}/orders`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: rzpAuth(k) },
     body: JSON.stringify({ amount: due, currency: "INR", receipt: inv.number, notes: { invoiceId: inv.id } }),

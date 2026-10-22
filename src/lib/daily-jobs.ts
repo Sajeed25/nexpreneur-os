@@ -6,6 +6,7 @@ import { todayIST } from "@/lib/booking";
 import { issueInvoice } from "@/lib/invoicing";
 import { emailInvoice, emailReminder } from "@/lib/invoice-mail";
 import { notify } from "@/lib/notify";
+export { runCreditGrants } from "@/lib/credits";
 
 const { memberships, membershipPlans, users, invoices } = schema;
 

@@ -8,7 +8,7 @@ import { can, ROLES, type Role } from "@/lib/rbac";
 
 const { users, auditLogs } = schema;
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
-export type TeamRow = { id: string; name: string; email: string; role: Role; active: boolean; lastLoginAt: string | null; isMe: boolean };
+export type TeamRow = { id: string; name: string; email: string; role: Role; active: boolean; lastLoginAt: string | null; isMe: boolean; twoFactor: boolean };
 export type AuditRow = { id: string; who: string; action: string; at: string };
 
 async function ctx() {
@@ -21,7 +21,21 @@ export async function listTeam(): Promise<Result<TeamRow[]>> {
   const s = await ctx();
   if (!s) return { ok: false, error: NO };
   const rows = await db().select().from(users).where(eq(users.organizationId, s.org)).orderBy(users.name).limit(1000);
-  return { ok: true, data: rows.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: !u.deletedAt, lastLoginAt: u.lastLoginAt?.toISOString() ?? null, isMe: u.id === s.uid })) };
+  return { ok: true, data: rows.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: !u.deletedAt, lastLoginAt: u.lastLoginAt?.toISOString() ?? null, isMe: u.id === s.uid, twoFactor: !!u.totpEnabledAt })) };
+}
+
+/** For someone who lost their phone and their recovery codes: an owner clears their two-factor so they can sign in and set it up again. */
+export async function resetTwoFactor(userId: string): Promise<Result<null>> {
+  const s = await ctx();
+  if (!s || !z.string().uuid().safeParse(userId).success) return { ok: false, error: s ? "Invalid request" : NO };
+  const [t] = await db().select().from(users).where(and(eq(users.id, userId), eq(users.organizationId, s.org)));
+  if (!t) return { ok: false, error: "User not found" };
+  if (t.role === "super_admin" && s.role !== "super_admin") return { ok: false, error: "Only a super admin can change a super admin." };
+  const { disableTwoFactor } = await import("@/lib/twofactor");
+  await disableTwoFactor(userId, s.org, s.uid);
+  const { notify } = await import("@/lib/notify");
+  await notify(db(), { org: s.org, userId, kind: "security", title: "Two-factor sign-in was reset", body: "An owner reset it for you. Set it up again on your Profile.", link: "/profile/security" });
+  return { ok: true, data: null };
 }
 
 // Only a super admin may hand out the super_admin role.

@@ -30,6 +30,42 @@ async function start(s: { uid: string; org: string; name: string; email: string;
   redirect(HOME[s.role]);
 }
 
+const TWO_FA_COOKIE = "nx_2fa";
+
+/** Signs in, or - when the person has two-factor on - holds them at the code screen. The password (or link) alone is not enough. */
+async function startOrChallenge(s: { uid: string; org: string; name: string; email: string; role: Role; totp?: boolean }): Promise<never> {
+  if (!s.totp) return start(s);
+  const { signBlob } = await import("@/lib/oauth");
+  const { totp: _t, ...who } = s; void _t;
+  (await cookies()).set(TWO_FA_COOKIE, signBlob({ purpose: "2fa", ...who }, 5 * 60_000), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 300 });
+  redirect("/login/2fa");
+}
+
+/** The code screen: an authenticator code, or a one-time recovery code. Five tries, then the person has to start again. */
+export async function verifyTwoFactor(_: FormState, fd: FormData): Promise<FormState> {
+  const code = z.string().trim().min(6).max(20).safeParse(fd.get("code"));
+  if (!code.success) return { error: "Enter the 6-digit code from your authenticator app." };
+  const { verifyBlob } = await import("@/lib/oauth");
+  const jar = await cookies();
+  const blob = verifyBlob<{ purpose: string; uid: string; org: string; name: string; email: string; role: Role }>(jar.get(TWO_FA_COOKIE)?.value);
+  if (!blob || blob.purpose !== "2fa" || !isRole(blob.role)) return { error: "That sign-in expired. Please sign in again." };
+  if (throttled(`2fa:${blob.uid}`, 6, 10 * 60_000) || throttled(`2fa-ip:${await clientKey()}`, 20, 10 * 60_000)) return { error: "Too many attempts. Wait a few minutes, then sign in again." };
+  let how: "totp" | "recovery" | null = null;
+  try {
+    how = await (await import("@/lib/twofactor")).checkChallenge(blob.uid, code.data);
+  } catch (e) {
+    console.error("2fa check failed", e);
+    return { error: `Couldn't check the code (code: ${tag(e)}). Please try again.` };
+  }
+  if (!how) return { error: "That code didn't work. Check the time on your phone, or use a recovery code." };
+  jar.delete(TWO_FA_COOKIE);
+  try {
+    const { db, schema } = await import("@/lib/db");
+    await db().insert(schema.auditLogs).values({ organizationId: blob.org, actorId: blob.uid, action: `auth.2fa_login:${how}`, entity: "user", entityId: blob.uid });
+  } catch (e) { console.error("2fa audit failed", e); }
+  return start({ uid: blob.uid, org: blob.org, name: blob.name, email: blob.email, role: blob.role });
+}
+
 export async function signIn(_: FormState, fd: FormData): Promise<FormState> {
   const base = z.object({ email, password });
 
@@ -55,7 +91,7 @@ export async function signIn(_: FormState, fd: FormData): Promise<FormState> {
     return { error: `Couldn't sign in right now (code: ${tag(e)}). Please try again.` };
   }
   if (!user) return { error: BAD_LOGIN };
-  return start(user);
+  return startOrChallenge(user);
 }
 
 export async function signOut() {
@@ -150,5 +186,5 @@ export async function consumeMagic(_: FormState, fd: FormData): Promise<FormStat
     return { error: `Couldn't sign in (code: ${tag(e)}). Please try again.` };
   }
   if (!user) return { error: "This sign-in link is invalid or has expired. Request a new one." };
-  return start(user);
+  return startOrChallenge(user);
 }

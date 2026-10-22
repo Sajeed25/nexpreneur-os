@@ -8,10 +8,13 @@ import { INV_LABEL, INV_TONE } from "@/lib/billing";
 import { cn } from "@/lib/utils";
 import { assignMembership } from "../../invoices/actions";
 import { setMembershipStatus } from "../../invoices/extras";
-import { getMember, memberOptions, sendInvitation, setMemberActive, setTemporaryPassword, updateMember, type MemberDetail, type MemberOptions } from "../actions";
+import { fmtMinutes } from "@/lib/credit-math";
+import { adjustMemberCredits, getMember, memberOptions, sendInvitation, setMemberActive, setTemporaryPassword, updateMember, type MemberDetail, type MemberOptions } from "../actions";
 import { MemberForm, field } from "../member-form";
+import { OnboardingPanel } from "../onboarding-panel";
+import { AccessPanel } from "../access-panel";
 
-const TABS = ["Overview", "Membership", "Bookings", "Invoices", "Activity", "Access", "Documents"] as const;
+const TABS = ["Overview", "Membership", "Onboarding", "Bookings", "Invoices", "Activity", "Access"] as const;
 type Tab = (typeof TABS)[number];
 
 export function MemberView({ id }: { id: string }) {
@@ -112,6 +115,31 @@ export function MemberView({ id }: { id: string }) {
               </form>
             </Card>
           )}
+          <Card className="space-y-3">
+            <h2 className="font-medium">Plan credits</h2>
+            <p className="text-sm">{d.credits.minutes > 0 || d.credits.passes > 0
+              ? <>Balance: <b>{fmtMinutes(d.credits.minutes)}</b> of meeting-room time · <b>{d.credits.passes}</b> hot-desk day pass{d.credits.passes === 1 ? "" : "es"}</>
+              : <span className="text-muted">No credits right now. Credits are granted at the start of each plan cycle when the plan includes them.</span>}</p>
+            {opts.canManage && (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const f = e.currentTarget, v = new FormData(f);
+                const kind = String(v.get("kind")) as "room_min" | "day_pass";
+                const raw = Number(v.get("amount"));
+                if (await run(() => adjustMemberCredits(id, { kind, amount: Math.round(kind === "room_min" ? raw * 60 : raw), note: String(v.get("note")) }), "Credits updated.")) f.reset();
+              }} className="grid gap-2 border-t pt-3 sm:grid-cols-5">
+                <label className="text-sm font-medium">Type<select name="kind" className={field}><option value="room_min">Room hours</option><option value="day_pass">Day passes</option></select></label>
+                <label className="text-sm font-medium">Add (or remove with −)<input name="amount" type="number" step="0.5" required className={field} /></label>
+                <label className="text-sm font-medium sm:col-span-2">Reason<input name="note" required minLength={2} maxLength={200} className={field} placeholder="Goodwill top-up" /></label>
+                <Button type="submit" variant="secondary" size="sm" disabled={busy} className="self-end">Adjust</Button>
+              </form>
+            )}
+            {d.creditHistory.length > 0 && (
+              <ul className="divide-y border-t text-xs text-muted">{d.creditHistory.map((h) => (
+                <li key={h.id} className="flex justify-between gap-2 py-1.5"><span>{h.reason}{h.note ? ` · ${h.note}` : ""}</span><span className={h.delta < 0 ? "text-red-600" : "text-emerald-600"}>{h.delta > 0 ? "+" : ""}{h.kind === "room_min" ? fmtMinutes(Math.abs(h.delta)).replace(/^/, h.delta < 0 ? "-" : "") : h.delta}{h.kind === "day_pass" ? " pass" : ""}</span></li>
+              ))}</ul>
+            )}
+          </Card>
           <Card className="py-1">
             {d.memberships.length === 0 ? <p className="py-6 text-center text-sm text-muted">No membership yet.</p> : (
               <ul className="divide-y text-sm">{d.memberships.map((x) => (
@@ -157,8 +185,8 @@ export function MemberView({ id }: { id: string }) {
         )}</Card>
       )}
 
-      {tab === "Access" && <Card><p className="font-medium">Door and desk access</p><p className="mt-1 text-sm text-muted">Coming soon. This will connect to your door-access system.</p></Card>}
-      {tab === "Documents" && <Card><p className="font-medium">Documents</p><p className="mt-1 text-sm text-muted">Coming soon. Agreements and ID documents will be stored here.</p></Card>}
+      {tab === "Onboarding" && <OnboardingPanel userId={id} />}
+      {tab === "Access" && <AccessPanel userId={id} />}
     </div>
   );
 }

@@ -8,8 +8,9 @@ import { can } from "@/lib/rbac";
 import { isFinance } from "@/lib/billing";
 import { smtpConfigured, appUrl } from "@/lib/mailer";
 import { assignMembership } from "../invoices/actions";
+import { creditBalance, lockUser, postLedger } from "@/lib/credits";
 
-const { users, memberships, membershipPlans, invoices, bookings, resources, locations, companies, auditLogs } = schema;
+const { users, memberships, membershipPlans, invoices, bookings, resources, locations, companies, auditLogs, creditLedger } = schema;
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 const NO = "Sign in with a real account to manage members.";
 const FORBIDDEN = "You don't have permission to do that.";
@@ -29,7 +30,7 @@ export type MemberRow = {
   owedPaise: number; active: boolean; lastLoginAt: string | null; joinedAt: string;
 };
 export type MemberOptions = {
-  canEdit: boolean; canAssign: boolean; emailReady: boolean;
+  canEdit: boolean; canAssign: boolean; emailReady: boolean; canManage: boolean;
   locations: { id: string; name: string }[]; plans: { id: string; name: string; pricePaise: number }[]; companies: { id: string; name: string }[];
 };
 
@@ -41,7 +42,7 @@ export async function memberOptions(): Promise<Result<MemberOptions>> {
     db().select({ id: membershipPlans.id, name: membershipPlans.name, pricePaise: membershipPlans.pricePaise }).from(membershipPlans).where(and(eq(membershipPlans.organizationId, s.org), isNull(membershipPlans.deletedAt))).orderBy(membershipPlans.pricePaise),
     db().select({ id: companies.id, name: companies.name }).from(companies).where(and(eq(companies.organizationId, s.org), isNull(companies.deletedAt))).orderBy(companies.name),
   ]);
-  return { ok: true, data: { canEdit: EDITORS.includes(s.role), canAssign: isFinance(s.role), emailReady: smtpConfigured() && !!appUrl(), locations: locs, plans, companies: cos } };
+  return { ok: true, data: { canEdit: EDITORS.includes(s.role), canAssign: isFinance(s.role), canManage: ["super_admin", "owner", "location_manager"].includes(s.role), emailReady: smtpConfigured() && !!appUrl(), locations: locs, plans, companies: cos } };
 }
 
 export async function listMembers(): Promise<Result<MemberRow[]>> {
@@ -205,6 +206,8 @@ export type MemberDetail = {
   bookings: { id: string; space: string; startsAt: string; endsAt: string; status: string; totalPaise: number }[];
   invoices: { id: string; number: string; issueDate: string; totalPaise: number; paidPaise: number; status: string }[];
   activity: { id: string; action: string; at: string }[];
+  credits: { minutes: number; passes: number };
+  creditHistory: { id: string; kind: string; delta: number; reason: string; note: string | null; at: string }[];
 };
 
 export async function getMember(id: string): Promise<Result<MemberDetail>> {
@@ -216,7 +219,7 @@ export async function getMember(id: string): Promise<Result<MemberDetail>> {
   const [u] = await db().select({ companyId: users.companyId }).from(users).where(and(eq(users.id, id), eq(users.organizationId, s.org)));
   if (!row || !u) return fail("Member not found");
   const d = db();
-  const [ms, bks, inv, acts] = await Promise.all([
+  const [ms, bks, inv, acts, credits, history] = await Promise.all([
     d.select({ id: memberships.id, plan: membershipPlans.name, start: memberships.startDate, renewal: memberships.renewalDate, status: memberships.status }).from(memberships)
       .innerJoin(membershipPlans, eq(membershipPlans.id, memberships.planId)).where(and(eq(memberships.userId, id), eq(memberships.organizationId, s.org))).orderBy(desc(memberships.createdAt)).limit(20),
     d.select({ id: bookings.id, space: resources.name, startsAt: bookings.startsAt, endsAt: bookings.endsAt, status: bookings.status, total: bookings.totalPaise }).from(bookings)
@@ -225,6 +228,8 @@ export async function getMember(id: string): Promise<Result<MemberDetail>> {
       ? d.select().from(invoices).where(and(eq(invoices.userId, id), eq(invoices.organizationId, s.org))).orderBy(desc(invoices.issueDate)).limit(15)
       : Promise.resolve([]),
     d.select().from(auditLogs).where(and(eq(auditLogs.organizationId, s.org), eq(auditLogs.entityId, id))).orderBy(desc(auditLogs.createdAt)).limit(15),
+    creditBalance(d, id),
+    d.select().from(creditLedger).where(and(eq(creditLedger.userId, id), eq(creditLedger.organizationId, s.org))).orderBy(desc(creditLedger.createdAt)).limit(12),
   ]);
   return { ok: true, data: {
     member: { ...row, companyId: u.companyId },
@@ -232,5 +237,32 @@ export async function getMember(id: string): Promise<Result<MemberDetail>> {
     bookings: bks.map((b) => ({ id: b.id, space: b.space, startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), status: b.status, totalPaise: b.total })),
     invoices: inv.map((i) => ({ id: i.id, number: i.number, issueDate: i.issueDate, totalPaise: i.totalPaise, paidPaise: i.paidPaise, status: i.status })),
     activity: acts.map((a) => ({ id: a.id, action: a.action, at: a.createdAt.toISOString() })),
+    credits,
+    creditHistory: history.map((h) => ({ id: h.id, kind: h.kind, delta: h.delta, reason: h.reason, note: h.note, at: h.createdAt.toISOString() })),
   } };
+}
+
+const adjustIn = z.object({ kind: z.enum(["room_min", "day_pass"]), amount: z.number().int().min(-100_000).max(100_000), note: z.string().trim().min(2, "Add a short reason").max(200) });
+/** Managers can add or remove a member's credits by hand (a goodwill top-up, a correction). Every change is logged. Minutes for room time, whole numbers for day passes. */
+export async function adjustMemberCredits(id: string, input: z.infer<typeof adjustIn>): Promise<Result<null>> {
+  const s = await ctx();
+  if (!s || !z.string().uuid().safeParse(id).success) return fail(s ? "Member not found" : NO);
+  if (!["super_admin", "owner", "location_manager"].includes(s.role)) return fail(FORBIDDEN);
+  const p = adjustIn.safeParse(input);
+  if (!p.success || p.data.amount === 0) return fail(p.success ? "Enter an amount other than zero" : p.error.issues[0]?.message ?? "Check the details");
+  const [u] = await db().select({ id: users.id }).from(users).where(and(eq(users.id, id), eq(users.organizationId, s.org), isNull(users.deletedAt)));
+  if (!u) return fail("Member not found");
+  try {
+    await db().transaction(async (tx) => {
+      await lockUser(tx, id);
+      const bal = await creditBalance(tx, id);
+      const now = p.data.kind === "room_min" ? bal.minutes : bal.passes;
+      if (now + p.data.amount < 0) throw new Error("That would take the balance below zero.");
+      await postLedger(tx, { org: s.org, userId: id, kind: p.data.kind, delta: p.data.amount, reason: "adjust", note: p.data.note, createdBy: s.uid });
+      await tx.insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: `credits.adjust:${p.data.kind}:${p.data.amount}`, entity: "user", entityId: id });
+    });
+    return { ok: true, data: null };
+  } catch (e) {
+    return fail(e instanceof Error && e.message.startsWith("That would") ? e.message : "Couldn't change the credits.");
+  }
 }

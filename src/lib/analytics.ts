@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt, notInArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { CLOSE_HOUR, OPEN_HOUR, todayIST } from "@/lib/booking";
 import { isAllLocations, matchLocations } from "@/lib/locations";
@@ -63,7 +63,8 @@ export async function computeAnalytics(org: string, range: RangeKey, opts: { fin
   const [pays, bks, members, mems, lds, res, locs, owed] = await Promise.all([
     opts.finance
       ? d.select({ at: payments.createdAt, amt: payments.amountPaise, loc: invoices.locationId }).from(payments).innerJoin(invoices, eq(invoices.id, payments.invoiceId))
-          .where(and(eq(payments.organizationId, org), eq(payments.status, "captured"), gte(payments.createdAt, from), lt(payments.createdAt, to))).limit(20000)
+          // TDS and credit notes settle an invoice but aren't money received, so they don't count as revenue.
+          .where(and(eq(payments.organizationId, org), eq(payments.status, "captured"), notInArray(payments.method, ["tds", "credit_note"]), gte(payments.createdAt, from), lt(payments.createdAt, to))).limit(20000)
       : Promise.resolve([]),
     d.select({ s: bookings.startsAt, e: bookings.endsAt, loc: bookings.locationId, res: bookings.resourceId, total: bookings.totalPaise, kind: resources.kind }).from(bookings)
       .innerJoin(resources, eq(resources.id, bookings.resourceId))

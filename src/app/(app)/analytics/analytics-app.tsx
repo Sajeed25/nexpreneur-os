@@ -7,7 +7,11 @@ import type { Analytics } from "@/lib/analytics";
 import { rupees } from "@/lib/booking";
 import { cn } from "@/lib/utils";
 import { useLocation } from "@/components/shell/app-shell";
-import { exportCsv, getAnalytics } from "./actions";
+import { exportCsv, getAnalytics, getForecast } from "./actions";
+import type { Forecast } from "@/lib/forecast-math";
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const dayName = (d: { date: string; weekday: number }) => `${DAYS[d.weekday]} ${Number(d.date.slice(8))}`;
 
 const RANGES = [["7d", "7 Days"], ["30d", "30 Days"], ["90d", "90 Days"], ["year", "This Year"]] as const;
 
@@ -18,6 +22,13 @@ export function AnalyticsApp() {
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [exporting, setExporting] = React.useState(false);
+  const [fc, setFc] = React.useState<Forecast | null>(null);
+
+  React.useEffect(() => {
+    let live = true;
+    getForecast(loc).then((r) => { if (live && r.ok) setFc(r.data); });
+    return () => { live = false; };
+  }, [loc]);
 
   React.useEffect(() => {
     let live = true;
@@ -73,6 +84,20 @@ export function AnalyticsApp() {
               <Card key={label} className="p-4"><p className="text-sm text-muted">{label}</p><p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>{sub && <p className="text-xs text-muted">{sub}</p>}</Card>
             ))}
           </div>
+          {fc && (
+            <Card className="space-y-3">
+              <div><h2 className="font-medium">Next 14 days: expected occupancy</h2>
+                <p className="text-sm text-muted">{fc.enough
+                  ? <>Based on the last {Math.round(fc.basis / 7)} weeks of bookings, adjusted for whether recent weeks ran {fc.trend > 1.02 ? "busier" : fc.trend < 0.98 ? "quieter" : "about the same"}. Expect around <b>{fc.average}%</b> on average{fc.busiest && fc.quietest ? <>; busiest <b>{dayName(fc.busiest)}</b> ({fc.busiest.pct}%), quietest <b>{dayName(fc.quietest)}</b> ({fc.quietest.pct}%)</> : null}.</>
+                  : "Not enough booking history yet for a useful forecast. It appears once there are three weeks of bookings."}</p></div>
+              {fc.enough && (
+                <>
+                  <BarSeries data={fc.days.map((d) => ({ label: dayName(d), value: d.pct }))} fmt={(v) => `${v}%`} />
+                  <p className="text-xs text-muted">A simple pattern forecast, not a promise: holidays, events and new members will move it. Typical range on a given day is about ±{Math.round(fc.days.reduce((s, d) => s + (d.high - d.low) / 2, 0) / fc.days.length)} points.</p>
+                </>
+              )}
+            </Card>
+          )}
           <div className="grid gap-4 lg:grid-cols-2">
             <ChartCard title="Revenue" hint="Payments collected, incl. GST"><AreaSeries data={a.series.revenue} fmt={compactInr} /></ChartCard>
             <ChartCard title="Occupancy (%)" hint="Booked hours ÷ open hours across all resources"><LineSeries data={a.series.occupancy} fmt={(v) => `${v}%`} /></ChartCard>

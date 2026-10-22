@@ -3,10 +3,11 @@ import * as React from "react";
 import Link from "next/link";
 import { Button, Input } from "@/components/ui";
 import { ROLES, ROLE_LABEL } from "@/lib/rbac";
-import { consumeMagic, forgotPassword, register, requestMagic, resetPassword, signIn, type FormState } from "./actions";
+import { consumeMagic, forgotPassword, register, requestMagic, resetPassword, signIn, verifyTwoFactor, type FormState } from "./actions";
 
-type Kind = "login" | "register" | "forgot" | "reset" | "magic" | "magicUse";
+type Kind = "login" | "register" | "forgot" | "reset" | "magic" | "magicUse" | "twofa";
 const CFG = {
+  twofa: { action: verifyTwoFactor, cta: "Verify and sign in" },
   login: { action: signIn, cta: "Sign in" },
   register: { action: register, cta: "Create account" },
   forgot: { action: forgotPassword, cta: "Send reset link" },
@@ -17,14 +18,15 @@ const CFG = {
 
 const btn = "inline-flex h-11 items-center justify-center rounded-xl border bg-surface px-4 text-[15px] font-medium";
 
-export function AuthForm({ kind, demo = false, token, magic = false, google = false }: { kind: Kind; demo?: boolean; token?: string; magic?: boolean; google?: boolean }) {
+export function AuthForm({ kind, demo = false, token, magic = false, google = false, sso }: { kind: Kind; demo?: boolean; token?: string; magic?: boolean; google?: boolean; sso?: string }) {
   const [state, act, pending] = React.useActionState<FormState, FormData>(CFG[kind].action, {});
   return (
     <form action={act} className="space-y-4" noValidate>
       {(kind === "reset" || kind === "magicUse") && <input type="hidden" name="token" value={token ?? ""} />}
       {kind === "register" && <Input name="name" label="Full name" autoComplete="name" />}
-      {kind !== "reset" && kind !== "magicUse" && <Input name="email" type="email" label="Email" autoComplete="email" placeholder="you@company.in" />}
-      {kind !== "forgot" && kind !== "magic" && kind !== "magicUse" && <Input name="password" type="password" label={kind === "reset" ? "New password" : "Password"} autoComplete={kind === "login" ? "current-password" : "new-password"} />}
+      {kind === "twofa" && <Input name="code" label="Code" autoComplete="one-time-code" inputMode="numeric" placeholder="123 456" autoFocus />}
+      {kind !== "reset" && kind !== "magicUse" && kind !== "twofa" && <Input name="email" type="email" label="Email" autoComplete="email" placeholder="you@company.in" />}
+      {kind !== "forgot" && kind !== "magic" && kind !== "magicUse" && kind !== "twofa" && <Input name="password" type="password" label={kind === "reset" ? "New password" : "Password"} autoComplete={kind === "login" ? "current-password" : "new-password"} />}
       {kind === "reset" && <Input name="confirm" type="password" label="Confirm password" autoComplete="new-password" />}
       {kind === "login" && (
         <>
@@ -47,6 +49,7 @@ export function AuthForm({ kind, demo = false, token, magic = false, google = fa
           {magic ? <Link href="/magic-link" className={btn}>Email me a link</Link> : <Button type="button" variant="secondary" disabled title="Needs email (SMTP) to be set up">Email link</Button>}
           {/* A plain link, not a fetch: the browser must follow the redirect to Google. */}
           {google ? <a href="/api/auth/google" className={btn}>Google</a> : <Button type="button" variant="secondary" disabled title="Needs Google keys to be set up">Google</Button>}
+          {sso && <a href="/api/auth/oidc" className={btn + " col-span-2"}>{sso}</a>}
         </div>
       )}
     </form>

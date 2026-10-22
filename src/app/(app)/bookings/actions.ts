@@ -1,5 +1,5 @@
 "use server";
-import { and, asc, eq, gt, inArray, isNull, lt } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, hasDb, schema } from "@/lib/db";
 import { getSession } from "@/lib/session";
@@ -7,8 +7,14 @@ import { can } from "@/lib/rbac";
 import { CLOSE_HOUR, OPEN_HOUR, fmtIST, istToDate, price, rupees, type Kind } from "@/lib/booking";
 import { notify } from "@/lib/notify";
 import { matchLocations } from "@/lib/locations";
+import { applyCredits, weeklyDates, MAX_REPEAT_WEEKS, type Balance } from "@/lib/credit-math";
+import { creditBalance, lockUser, postLedger, refundBookingCredits } from "@/lib/credits";
+import { offerFreedSlot } from "@/lib/waitlist";
+import { after } from "next/server";
+import { emailBookingConfirmation } from "@/lib/calendar";
+import { blockedByOnboarding } from "@/lib/onboarding";
 
-const { resources, bookings, locations, users, auditLogs } = schema;
+const { resources, bookings, locations, users, auditLogs, bookingWaitlist } = schema;
 
 export type ResourceDTO = {
   id: string; name: string; kind: Kind; capacity: number; status: string; city: string; locationId: string;
@@ -17,6 +23,7 @@ export type ResourceDTO = {
 export type BookingDTO = {
   id: string; resourceId: string; resourceName: string; kind: Kind; city: string; who: string;
   startsAt: string; endsAt: string; status: string; totalPaise: number;
+  seriesId: string | null; creditMinutes: number; creditPasses: number;
 };
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -69,6 +76,7 @@ export async function listBookings(input: z.infer<typeof range>): Promise<Result
   return { ok: true, data: rows.map(({ b, r, u }) => ({
     id: b.id, resourceId: r.id, resourceName: r.name, kind: r.kind, city: all.find((l) => l.id === b.locationId)?.name ?? "",
     who: u.name, startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString(), status: b.status, totalPaise: b.totalPaise,
+    seriesId: b.seriesId, creditMinutes: b.creditMinutes, creditPasses: b.creditPasses,
   })) };
 }
 
@@ -88,7 +96,11 @@ function window(t: { date: string; start: string; end: string }): { start: Date;
   return { start, end };
 }
 
-export type Availability = ResourceDTO & { available: boolean; subtotal: number; tax: number; total: number };
+export type Availability = ResourceDTO & {
+  available: boolean; subtotal: number; tax: number; total: number;
+  /** Price with no credits applied, and what the member's credits cover. */
+  listTotal: number; creditMinutes: number; creditPasses: number;
+};
 
 export async function checkAvailability(input: z.infer<typeof timing>): Promise<Result<Availability[]>> {
   const s = await ctx();
@@ -105,50 +117,92 @@ export async function checkAvailability(input: z.infer<typeof timing>): Promise<
     inArray(bookings.status, ["confirmed", "pending"]), lt(bookings.startsAt, w.end), gt(bookings.endsAt, w.start),
   ));
   const taken = new Set(busy.map((b) => b.id));
+  const bal = await creditBalance(db(), s.uid);
   return { ok: true, data: pool.map((r) => {
-    const pr = price(r, w.start, w.end);
-    return { ...r, available: r.status === "available" && !taken.has(r.id), subtotal: pr.subtotal, tax: pr.tax, total: pr.total };
+    const q = applyCredits(r, w.start, w.end, bal);
+    return { ...r, available: r.status === "available" && !taken.has(r.id), subtotal: q.subtotal, tax: q.tax, total: q.total, listTotal: q.listTotal, creditMinutes: q.creditMinutes, creditPasses: q.creditPasses };
   }) };
 }
 
-const create = timing.omit({ loc: true, kind: true }).extend({ resourceId: z.string().uuid() });
+const create = timing.omit({ loc: true, kind: true }).extend({
+  resourceId: z.string().uuid(),
+  /** Repeat the same slot every week for this many weeks in total (1 = just once). */
+  repeatWeeks: z.number().int().min(1).max(MAX_REPEAT_WEEKS).optional(),
+});
 
-export async function createBooking(input: z.infer<typeof create>): Promise<Result<{ id: string; total: number }>> {
+export type CreatedBooking = { id: string; total: number; created: number; skipped: { date: string; why: string }[]; creditMinutes: number; creditPasses: number; seriesId: string | null };
+
+export async function createBooking(input: z.infer<typeof create>): Promise<Result<CreatedBooking>> {
   const s = await ctx();
   const p = create.safeParse(input);
   if (!s || !p.success) return { ok: false, error: s ? "Invalid request" : NO_ACCESS };
-  const w = window(p.data);
-  if (typeof w === "string") return { ok: false, error: w };
+  const dates = weeklyDates(p.data.date, p.data.repeatWeeks ?? 1);
+  const first = window({ date: dates[0], start: p.data.start, end: p.data.end });
+  if (typeof first === "string") return { ok: false, error: first };
+  const ob = await blockedByOnboarding(s.org, s.uid, s.role);
+  if (ob.blocked) return { ok: false, error: `Please finish setting up before you book: ${ob.missing.join(", ")}.` };
   try {
-    return await db().transaction(async (tx) => {
-      // Lock the resource row so two people can't book the same slot at the same moment.
+    const res = await db().transaction(async (tx) => {
+      // Lock the member (so credits can't be spent twice at once), then the resource (so nobody else books the same slot).
+      await lockUser(tx, s.uid);
       const [r] = await tx.select().from(resources)
         .where(and(eq(resources.id, p.data.resourceId), eq(resources.organizationId, s.org), isNull(resources.deletedAt)))
         .for("update");
       if (!r) return { ok: false as const, error: "Resource not found" };
       if (r.status !== "available") return { ok: false as const, error: "This resource isn't available" };
-      const clash = await tx.select({ id: bookings.id }).from(bookings).where(and(
-        eq(bookings.resourceId, r.id), inArray(bookings.status, ["confirmed", "pending"]),
-        lt(bookings.startsAt, w.end), gt(bookings.endsAt, w.start),
-      )).limit(1);
-      if (clash.length) return { ok: false as const, error: "Sorry, that slot was just taken. Pick another time." };
-      const pr = price(r, w.start, w.end);
-      const id = crypto.randomUUID();
-      await tx.insert(bookings).values({
-        id, organizationId: s.org, locationId: r.locationId, resourceId: r.id, userId: s.uid,
-        startsAt: w.start, endsAt: w.end, status: "confirmed", subtotalPaise: pr.subtotal, taxPaise: pr.tax, totalPaise: pr.total,
+
+      const bal: Balance = await creditBalance(tx, s.uid);
+      const seriesId = dates.length > 1 ? crypto.randomUUID() : null;
+      const made: { id: string; start: Date; end: Date }[] = [];
+      const skipped: { date: string; why: string }[] = [];
+      let total = 0, usedMinutes = 0, usedPasses = 0;
+
+      for (const date of dates) {
+        const w = window({ date, start: p.data.start, end: p.data.end });
+        if (typeof w === "string") { skipped.push({ date, why: w }); continue; }
+        const clash = await tx.select({ id: bookings.id }).from(bookings).where(and(
+          eq(bookings.resourceId, r.id), inArray(bookings.status, ["confirmed", "pending"]),
+          lt(bookings.startsAt, w.end), gt(bookings.endsAt, w.start),
+        )).limit(1);
+        if (clash.length) { skipped.push({ date, why: "already booked" }); continue; }
+        const q = applyCredits(r, w.start, w.end, bal);
+        const id = crypto.randomUUID();
+        await tx.insert(bookings).values({
+          id, organizationId: s.org, locationId: r.locationId, resourceId: r.id, userId: s.uid,
+          startsAt: w.start, endsAt: w.end, status: "confirmed", subtotalPaise: q.subtotal, taxPaise: q.tax, totalPaise: q.total,
+          creditMinutes: q.creditMinutes, creditPasses: q.creditPasses, seriesId,
+        });
+        await postLedger(tx, { org: s.org, userId: s.uid, kind: "room_min", delta: -q.creditMinutes, reason: "use", bookingId: id, note: r.name });
+        await postLedger(tx, { org: s.org, userId: s.uid, kind: "day_pass", delta: -q.creditPasses, reason: "use", bookingId: id, note: r.name });
+        bal.minutes -= q.creditMinutes; bal.passes -= q.creditPasses;
+        usedMinutes += q.creditMinutes; usedPasses += q.creditPasses; total += q.total;
+        made.push({ id, start: w.start, end: w.end });
+      }
+      if (!made.length) {
+        return { ok: false as const, error: dates.length > 1 ? "None of those dates were free. Try another time." : (skipped[0]?.why === "already booked" ? "Sorry, that slot was just taken. Pick another time." : skipped[0]?.why ?? "Couldn't book that time.") };
+      }
+      await tx.insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: seriesId ? `booking.create_series:${made.length}` : "booking.create", entity: "booking", entityId: made[0].id });
+      const when = (d: Date) => `${fmtIST(d.toISOString(), { weekday: "short", day: "numeric", month: "short" })}, ${fmtIST(d.toISOString(), { hour: "numeric", minute: "2-digit" })} to ${fmtIST(made[0].end.toISOString(), { hour: "numeric", minute: "2-digit" })}`;
+      await notify(tx, {
+        org: s.org, userId: s.uid, kind: "booking",
+        title: made.length > 1 ? `Recurring booking confirmed: ${r.name}` : `Booking confirmed: ${r.name}`,
+        body: `${when(made[0].start)}${made.length > 1 ? ` · ${made.length} weeks` : ""} · ${rupees(total)}${usedMinutes || usedPasses ? " (plan credits used)" : ""}`, link: "/bookings",
       });
-      await tx.insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: "booking.create", entity: "booking", entityId: id });
-      await notify(tx, { org: s.org, userId: s.uid, kind: "booking", title: `Booking confirmed: ${r.name}`, body: `${fmtIST(w.start.toISOString(), { weekday: "short", day: "numeric", month: "short" })}, ${fmtIST(w.start.toISOString(), { hour: "numeric", minute: "2-digit" })} to ${fmtIST(w.end.toISOString(), { hour: "numeric", minute: "2-digit" })} · ${rupees(pr.total)}`, link: "/bookings" });
-      return { ok: true as const, data: { id, total: pr.total } };
+      return { ok: true as const, data: { id: made[0].id, total, created: made.length, skipped, creditMinutes: usedMinutes, creditPasses: usedPasses, seriesId }, ids: made.map((m) => m.id) };
     });
+    if (!res.ok) return res;
+    const { ids, ...out } = res;
+    // The email (with a calendar invite) goes out after the response, so a slow mail server never delays the booking.
+    try { after(() => emailBookingConfirmation(s.uid, ids, { total: out.data.total, creditMinutes: out.data.creditMinutes, creditPasses: out.data.creditPasses })); } catch { /* outside a request */ }
+    return out;
   } catch (e) {
     console.error("createBooking failed", e);
     return { ok: false, error: "Couldn't create the booking. Please try again." };
   }
 }
 
-export async function cancelBooking(id: string): Promise<Result<null>> {
+/** Cancels one booking, or (scope "series") this and every later session of a recurring booking. Unused plan credits go back. */
+export async function cancelBooking(id: string, scope: "one" | "series" = "one"): Promise<Result<{ cancelled: number }>> {
   const s = await ctx();
   if (!s || !z.string().uuid().safeParse(id).success) return { ok: false, error: s ? "Invalid request" : NO_ACCESS };
   const [b] = await db().select().from(bookings).where(and(eq(bookings.id, id), eq(bookings.organizationId, s.org))).limit(1);
@@ -156,9 +210,68 @@ export async function cancelBooking(id: string): Promise<Result<null>> {
   // Members may only cancel their own; staff roles may cancel any.
   if (s.role === "member" && b.userId !== s.uid) return { ok: false, error: "You can only cancel your own bookings" };
   if (b.status !== "confirmed" && b.status !== "pending") return { ok: false, error: "This booking can't be cancelled" };
-  await db().update(bookings).set({ status: "cancelled" }).where(eq(bookings.id, id));
-  await db().insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: "booking.cancel", entity: "booking", entityId: id });
-  await notify(db(), { org: s.org, userId: b.userId, kind: "booking", title: "Booking cancelled", body: s.uid === b.userId ? undefined : "Cancelled by the front desk.", link: "/bookings" });
+  try {
+    const n = await db().transaction(async (tx) => {
+      const targets = scope === "series" && b.seriesId
+        ? await tx.select().from(bookings).where(and(eq(bookings.seriesId, b.seriesId), eq(bookings.organizationId, s.org), inArray(bookings.status, ["confirmed", "pending"]), gt(bookings.startsAt, new Date(b.startsAt.getTime() - 1)))).for("update")
+        : [b];
+      let count = 0;
+      for (const t of targets) {
+        const r = await tx.update(bookings).set({ status: "cancelled" }).where(and(eq(bookings.id, t.id), inArray(bookings.status, ["confirmed", "pending"])));
+        if (!(r[0] as { affectedRows?: number }).affectedRows) continue;
+        count++;
+        if (t.startsAt > new Date()) await refundBookingCredits(tx, t); // only unused credits come back
+        await offerFreedSlot(tx, { org: s.org, resourceId: t.resourceId, locationId: t.locationId });
+      }
+      await tx.insert(auditLogs).values({ organizationId: s.org, actorId: s.uid, action: count > 1 ? `booking.cancel_series:${count}` : "booking.cancel", entity: "booking", entityId: id });
+      await notify(tx, { org: s.org, userId: b.userId, kind: "booking", title: count > 1 ? `${count} bookings cancelled` : "Booking cancelled", body: s.uid === b.userId ? undefined : "Cancelled by the front desk.", link: "/bookings" });
+      return count;
+    });
+    return { ok: true, data: { cancelled: n } };
+  } catch (e) {
+    console.error("cancelBooking failed", e);
+    return { ok: false, error: "Couldn't cancel the booking. Please try again." };
+  }
+}
+
+/** Plan credits the signed-in person has left. */
+export async function myCredits(): Promise<Result<Balance>> {
+  const s = await ctx();
+  if (!s) return { ok: false, error: NO_ACCESS };
+  return { ok: true, data: await creditBalance(db(), s.uid) };
+}
+
+// ---------- Waitlist ----------
+export type WaitlistDTO = { id: string; kind: string; locationName: string; startsAt: string; endsAt: string; status: string };
+
+export async function joinWaitlist(input: z.infer<typeof timing>): Promise<Result<null>> {
+  const s = await ctx();
+  const p = timing.safeParse(input);
+  if (!s || !p.success) return { ok: false, error: s ? "Invalid request" : NO_ACCESS };
+  const w = window(p.data);
+  if (typeof w === "string") return { ok: false, error: w };
+  const { picked } = await locationIds(s.org, p.data.loc);
+  if (picked.length !== 1) return { ok: false, error: "Pick one location (top of the page) to join its waitlist." };
+  const mine = await db().select({ id: bookingWaitlist.id, kind: bookingWaitlist.kind, s: bookingWaitlist.startsAt }).from(bookingWaitlist)
+    .where(and(eq(bookingWaitlist.userId, s.uid), inArray(bookingWaitlist.status, ["waiting", "notified"]), gt(bookingWaitlist.startsAt, new Date())));
+  if (mine.length >= 10) return { ok: false, error: "You can wait for up to 10 slots at a time." };
+  if (mine.some((m) => m.kind === p.data.kind && m.s.getTime() === w.start.getTime())) return { ok: false, error: "You're already on the waitlist for that time." };
+  await db().insert(bookingWaitlist).values({ organizationId: s.org, userId: s.uid, locationId: picked[0], kind: p.data.kind, startsAt: w.start, endsAt: w.end });
+  return { ok: true, data: null };
+}
+
+export async function myWaitlist(): Promise<Result<WaitlistDTO[]>> {
+  const s = await ctx();
+  if (!s) return { ok: false, error: NO_ACCESS };
+  const rows = await db().select({ w: bookingWaitlist, l: locations.name }).from(bookingWaitlist).innerJoin(locations, eq(locations.id, bookingWaitlist.locationId))
+    .where(and(eq(bookingWaitlist.userId, s.uid), inArray(bookingWaitlist.status, ["waiting", "notified"]), gt(bookingWaitlist.startsAt, new Date()))).orderBy(asc(bookingWaitlist.startsAt)).limit(20);
+  return { ok: true, data: rows.map(({ w, l }) => ({ id: w.id, kind: w.kind, locationName: l, startsAt: w.startsAt.toISOString(), endsAt: w.endsAt.toISOString(), status: w.status })) };
+}
+
+export async function leaveWaitlist(id: string): Promise<Result<null>> {
+  const s = await ctx();
+  if (!s || !z.string().uuid().safeParse(id).success) return { ok: false, error: s ? "Invalid request" : NO_ACCESS };
+  await db().update(bookingWaitlist).set({ status: "cancelled" }).where(and(eq(bookingWaitlist.id, id), eq(bookingWaitlist.userId, s.uid)));
   return { ok: true, data: null };
 }
 

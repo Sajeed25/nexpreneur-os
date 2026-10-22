@@ -4,7 +4,9 @@ import Link from "next/link";
 import { Armchair, CalendarCheck, DoorOpen, PartyPopper, Ticket } from "lucide-react";
 import { Card } from "@/components/ui";
 import { getMemberHome, type MemberHomeDTO } from "./actions";
+import { OnboardingPanel } from "../members/onboarding-panel";
 import { fmtIST, rupees } from "@/lib/booking";
+import { fmtMinutes } from "@/lib/credit-math";
 
 const ACTIONS = [
   { label: "Book Desk", icon: Armchair, href: "/bookings/new?kind=hot_desk" },
@@ -33,6 +35,8 @@ export function MemberHome({ name }: { name: string }) {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">{greeting()}, {name}</h1>
       {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
+
+      {d && <OnboardingPanel userId={d.userId} compact />}
 
       <Card>
         <p className="text-sm text-muted">Upcoming booking</p>
@@ -63,6 +67,9 @@ export function MemberHome({ name }: { name: string }) {
               <p className="opacity-80">Renews {new Date(`${d.membership.renewalDate}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
             </>
           ) : <p className="mt-1 opacity-90">No active plan yet. Ask reception to start one.</p>}
+          {d && (d.credits.minutes > 0 || d.credits.passes > 0) && (
+            <p className="mt-2 text-sm opacity-90">Credits left: {d.credits.minutes > 0 ? fmtMinutes(d.credits.minutes) + " meeting-room time" : ""}{d.credits.minutes > 0 && d.credits.passes > 0 ? " · " : ""}{d.credits.passes > 0 ? `${d.credits.passes} day pass${d.credits.passes > 1 ? "es" : ""}` : ""}</p>
+          )}
         </Card>
         <Link href="/invoices">
           <Card className="h-full transition hover:border-accent">

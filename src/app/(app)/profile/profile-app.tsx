@@ -1,8 +1,12 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { Avatar, Badge, Button, Card, PageHeader } from "@/components/ui";
 import { changePassword, getProfile, updateProfile, type ProfileDTO } from "./actions";
 import { ROLE_LABEL, type Role } from "@/lib/rbac";
+import { PrefsCard } from "./prefs-card";
+import { PassCard } from "./pass-card";
+import { CalendarCard } from "./calendar-card";
 
 const field = "mt-1.5 h-11 w-full rounded-xl border bg-surface px-3 text-[15px] outline-none focus:border-accent";
 type Msg = { kind: "ok" | "err"; text: string } | null;
@@ -63,6 +67,17 @@ export function ProfileApp() {
           <label className="text-sm font-medium">Emergency contact phone<input name="emergencyPhone" type="tel" defaultValue={p.emergencyPhone} maxLength={20} className={field} /></label>
           <div className="space-y-3 sm:col-span-2"><Note m={m1} /><Button type="submit" disabled={busy}>Save changes</Button></div>
         </form>
+      </Card>
+
+      <PassCard />
+
+      <PrefsCard />
+
+      <CalendarCard />
+
+      <Card className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="font-medium">Two-factor sign-in</h2><p className="text-sm text-muted">Add a code from your phone on top of your password.</p></div>
+        <Link href="/profile/security" className="rounded-xl border px-3 py-2 text-sm font-medium hover:bg-surface-2">Manage</Link>
       </Card>
 
       <Card>

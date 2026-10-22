@@ -7,6 +7,7 @@ import { useLocation } from "@/components/shell/app-shell";
 import { assignMembership, createPlan, listMemberOptions, listMemberships, listPlans, type MemberOpt, type MembershipDTO, type PlanDTO } from "../invoices/actions";
 import { createCoupon, listCoupons, listLocationOptions, listPlansAdmin, setCouponActive, setMembershipStatus, setPlanArchived, updatePlan, type CouponDTO, type PlanAdminDTO } from "../invoices/extras";
 import { rupees, todayIST } from "@/lib/booking";
+import { AutopayCard } from "./autopay-card";
 
 const field = "mt-1.5 h-11 w-full rounded-xl border bg-surface px-3 text-[15px] outline-none focus:border-accent";
 const CYCLE: Record<string, string> = { monthly: "month", quarterly: "quarter", yearly: "year" };
@@ -55,6 +56,7 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
     done(await createPlan({
       name: String(f.get("name")), price: Number(f.get("price")), cycle: String(f.get("cycle")) as "monthly",
       benefits: String(f.get("benefits") ?? "").split("\n").map((x) => x.trim()).filter(Boolean),
+      bookingHours: Number(f.get("bookingHours") || 0), dayPasses: Number(f.get("dayPasses") || 0),
     }));
   };
   const submitAssign = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -111,6 +113,9 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
             <label className="text-sm font-medium">Billing cycle
               <select name="cycle" className={field}><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select>
             </label>
+            <label className="text-sm font-medium">Meeting-room hours per cycle<input name="bookingHours" type="number" min="0" max="1000" step="1" defaultValue="0" className={field} /></label>
+            <label className="text-sm font-medium">Hot-desk day passes per cycle<input name="dayPasses" type="number" min="0" max="400" step="1" defaultValue="0" className={field} /></label>
+            <p className="text-sm text-muted sm:col-span-2">Credits are added to the member&apos;s balance at the start of each billing cycle and used automatically when they book. Unused credits expire at the end of the cycle.</p>
             <label className="text-sm font-medium sm:col-span-2">Benefits (one per line)<textarea name="benefits" rows={3} className={field + " h-auto py-2"} /></label>
             <Button type="submit" disabled={busy} className="sm:col-span-2">{busy ? "Saving…" : "Create plan"}</Button>
           </form>
@@ -166,12 +171,16 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
                 setBusy(true);
-                if (done(await updatePlan(p.id, { name: String(f.get("name")), price: Number(f.get("price")), cycle: String(f.get("cycle")) as "monthly", benefits: String(f.get("benefits") ?? "").split("\n").map((x) => x.trim()).filter(Boolean) }), false)) setEditPlan(null);
+                if (done(await updatePlan(p.id, { name: String(f.get("name")), price: Number(f.get("price")), cycle: String(f.get("cycle")) as "monthly", benefits: String(f.get("benefits") ?? "").split("\n").map((x) => x.trim()).filter(Boolean), bookingHours: Number(f.get("bookingHours") || 0), dayPasses: Number(f.get("dayPasses") || 0) }), false)) setEditPlan(null);
               }} className="space-y-3">
                 <input name="name" defaultValue={p.name} required minLength={2} aria-label="Plan name" className={field + " mt-0"} />
                 <div className="grid grid-cols-2 gap-2">
                   <input name="price" type="number" min="0" step="1" defaultValue={p.pricePaise / 100} required aria-label="Price in rupees" className={field + " mt-0"} />
                   <select name="cycle" defaultValue={p.billingCycle} aria-label="Billing cycle" className={field + " mt-0"}><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input name="bookingHours" type="number" min="0" max="1000" step="1" defaultValue={p.bookingHours} aria-label="Meeting-room hours per cycle" title="Meeting-room hours per cycle" className={field + " mt-0"} />
+                  <input name="dayPasses" type="number" min="0" max="400" step="1" defaultValue={p.dayPasses} aria-label="Hot-desk day passes per cycle" title="Hot-desk day passes per cycle" className={field + " mt-0"} />
                 </div>
                 <textarea name="benefits" defaultValue={p.benefits.join("\n")} rows={3} aria-label="Benefits, one per line" className={field + " mt-0 h-auto py-2"} />
                 <div className="flex gap-2"><Button type="submit" size="sm" disabled={busy}>Save</Button><Button type="button" size="sm" variant="secondary" onClick={() => setEditPlan(null)}>Cancel</Button></div>
@@ -181,6 +190,7 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
                 <div className="flex items-start justify-between gap-2"><h2 className="font-semibold">{p.name}</h2>{p.archived && <Badge tone="grey">Archived</Badge>}</div>
                 <p className="mt-2 text-2xl font-semibold tracking-tight">{rupees(p.pricePaise)}<span className="text-sm font-normal text-muted"> /{CYCLE[p.billingCycle]}</span></p>
                 <p className="text-xs text-muted">+ 18% GST{adminPlans ? ` · ${p.activeMembers} active` : ""}</p>
+                {(p.bookingHours > 0 || p.dayPasses > 0) && <p className="mt-2 text-xs font-medium text-accent">{[p.bookingHours ? `${p.bookingHours} room hours` : "", p.dayPasses ? `${p.dayPasses} day pass${p.dayPasses > 1 ? "es" : ""}` : ""].filter(Boolean).join(" + ")} included per cycle</p>}
                 {p.benefits.length > 0 && <ul className="mt-3 space-y-1 text-sm text-muted">{p.benefits.map((b) => <li key={b}>• {b}</li>)}</ul>}
                 {adminPlans && (
                   <div className="mt-4 flex gap-2">
@@ -194,6 +204,7 @@ export function MembershipsApp({ canAssign, canCreatePlan }: { canAssign: boolea
         ))}
       </div>
 
+      {!canAssign && <AutopayCard />}
       <h2 className="mb-3 font-medium">{canAssign ? "All memberships" : "Your membership"}</h2>
       {rows.length === 0 ? <EmptyState title="No memberships yet" hint={canAssign ? "Use “Assign membership” to start one." : "Ask reception to start your plan."} /> : <DataTable rows={rows} columns={cols} searchText={search} />}
     </>

@@ -53,9 +53,9 @@ export function BookingsApp({ initialTab, canSeed }: { initialTab: Tab; canSeed:
     return () => { live = false; };
   }, [loc, from, to, tick]);
 
-  const doCancel = async (id: string) => {
-    if (!window.confirm("Cancel this booking?")) return;
-    const r = await cancelBooking(id);
+  const doCancel = async (id: string, scope: "one" | "series" = "one") => {
+    if (!window.confirm(scope === "series" ? "Cancel this and all later sessions of this recurring booking?" : "Cancel this booking?")) return;
+    const r = await cancelBooking(id, scope);
     if (!r.ok) setError(r.error); else reload();
   };
   const seed = async () => { const r = await seedResources(); if (!r.ok) setError(r.error); else reload(); };
@@ -94,15 +94,15 @@ export function BookingsApp({ initialTab, canSeed }: { initialTab: Tab; canSeed:
   );
 }
 
-function ListView({ rows, onCancel }: { rows: BookingDTO[]; onCancel: (id: string) => void }) {
+function ListView({ rows, onCancel }: { rows: BookingDTO[]; onCancel: (id: string, scope?: "one" | "series") => void }) {
   const cols: Column<BookingDTO>[] = [
     { key: "res", header: "Resource", render: (b) => <div><p className="font-medium">{b.resourceName}</p><p className="text-xs text-muted">{kindLabel(b.kind)} · {b.city}</p></div> },
     { key: "who", header: "Booked by", render: (b) => b.who },
     { key: "when", header: "When", render: (b) => <div><p>{fmtIST(b.startsAt, { day: "numeric", month: "short", year: "numeric" })}</p><p className="text-xs text-muted">{fmtIST(b.startsAt, { hour: "numeric", minute: "2-digit" })} – {fmtIST(b.endsAt, { hour: "numeric", minute: "2-digit" })}</p></div> },
-    { key: "total", header: "Total", render: (b) => rupees(b.totalPaise) },
-    { key: "status", header: "Status", render: (b) => <Badge tone={tone(b.status)}>{STATUS_LABEL[b.status]}</Badge> },
+    { key: "total", header: "Total", render: (b) => <div><p>{rupees(b.totalPaise)}</p>{(b.creditMinutes > 0 || b.creditPasses > 0) && <p className="text-xs text-emerald-600">Plan credits used</p>}</div> },
+    { key: "status", header: "Status", render: (b) => <div className="flex flex-wrap items-center gap-1"><Badge tone={tone(b.status)}>{STATUS_LABEL[b.status]}</Badge>{b.seriesId && <Badge tone="blue">Weekly</Badge>}</div> },
     { key: "act", header: "", render: (b) => (b.status === "confirmed" || b.status === "pending") && new Date(b.endsAt) > new Date()
-      ? <Button variant="secondary" size="sm" onClick={() => onCancel(b.id)}>Cancel</Button> : null },
+      ? <div className="flex flex-wrap gap-1"><Button variant="secondary" size="sm" onClick={() => onCancel(b.id)}>Cancel</Button>{b.seriesId && <Button variant="ghost" size="sm" onClick={() => onCancel(b.id, "series")}>Cancel series</Button>}</div> : null },
   ];
   const search = React.useCallback((b: BookingDTO) => `${b.resourceName} ${b.who} ${b.status} ${b.city}`, []);
   return <DataTable rows={rows} columns={cols} searchText={search} />;

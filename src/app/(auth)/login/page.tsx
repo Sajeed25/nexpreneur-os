@@ -3,12 +3,17 @@ import { AuthForm } from "../auth-form";
 import { hasDb } from "@/lib/db/config";
 import { appUrl, smtpConfigured } from "@/lib/mailer";
 import { googleConfigured } from "@/lib/oauth";
+import { oidcConfigured, oidcLabel } from "@/lib/oidc";
 
 export const dynamic = "force-dynamic"; // DATABASE_URL and keys are read at request time, not baked in at build
 
 const ERRORS: Record<string, string> = {
   google: "Google sign-in didn't work. Please try again, or use your password.",
   google_busy: "Too many sign-in attempts. Try again in a few minutes.",
+  sso: "Single sign-on didn't work. Please try again, or use your password.",
+  sso_busy: "Too many sign-in attempts. Try again in a few minutes.",
+  sso_domain: "That email address isn't allowed to sign in here.",
+  sso_unknown: "You signed in, but there's no Nexpreneur OS account for that email yet. Ask your admin to add you.",
 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ reset?: string; error?: string }> }) {
@@ -20,7 +25,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
       <p className="mb-6 text-muted">Sign in to Nexpreneur OS.</p>
       {reset === "1" && <p role="status" className="mb-4 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">Password updated. Sign in with your new password.</p>}
       {error && ERRORS[error] && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">{ERRORS[error]}</p>}
-      <AuthForm kind="login" demo={!hasDb()} magic={live && smtpConfigured()} google={live && googleConfigured()} />
+      <AuthForm kind="login" demo={!hasDb()} magic={live && smtpConfigured()} google={live && googleConfigured()} sso={live && oidcConfigured() ? oidcLabel() : undefined} />
       <p className="mt-6 text-center text-sm text-muted">New here? <Link href="/register" className="text-accent hover:underline">Create an account</Link></p>
     </>
   );

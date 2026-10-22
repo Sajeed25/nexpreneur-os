@@ -82,6 +82,22 @@ Add a cron job in hPanel (Advanced > Cron Jobs), once a day, e.g. 07:00:
 - `/api/health` is a public ping. Signed-in owners can open `/api/health?deep=1` for library and configuration checks (no secrets shown).
 - Runtime logs: hPanel > website > Runtime logs.
 
+## Growth pack (migration 0008)
+Run `db/mysql-0008-growth.sql` once (safe to run twice). Each feature switches on when its settings exist; otherwise the screen says so.
+
+- **Meeting-room credits and day passes:** plans carry monthly hours and passes; a ledger tracks grants, use, refunds and expiry. Granted by the daily job.
+- **Recurring bookings and waitlist:** repeat weekly for up to 12 weeks; cancel one or the whole series. Full slots can be waitlisted and are offered on cancellation.
+- **WhatsApp and SMS:** `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE` (approved template with two text variables), `MSG91_AUTH_KEY`, `MSG91_TEMPLATE_ID`. Members opt in on Profile. Messages queue in an outbox sent by `/api/cron/daily` and `/api/cron/outbox` (call the latter every 5 minutes with the same bearer header).
+- **Razorpay:** payment links on invoices and UPI autopay on memberships. Point the webhook at `/api/razorpay/webhook` and enable `payment_link.paid`, `payment.captured`, `subscription.charged`, `subscription.halted`, `subscription.cancelled`, `refund.processed`.
+- **Tax:** TDS receipts, credit notes, GST CSV. E-invoicing (IRN): set `EINV_API_URL` and `EINV_API_TOKEN` to a GSP gateway that accepts NIC e-invoice schema 1.1 JSON by POST and returns `{ irn, ackNo, ackDate, signedQr }`.
+- **Doors:** Settings > Doors registers a controller and gives it a key. The controller POSTs `{ credential }` to `/api/access/verify` with its key and gets `{ allow, reason }`. Passes, cards and visitor QR codes work; every attempt is logged.
+- **Tours:** public booking page at `/tour/<location-slug>`; leads land in the CRM.
+- **Onboarding checklist** per member, with an optional booking gate. **Calendar:** per-booking .ics and a private subscription feed (Profile).
+- **Mobile app (PWA) and push:** installable; set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`npx web-push generate-vapid-keys`).
+- **Security:** authenticator-app 2FA with recovery codes (owners can reset a user's 2FA) and OpenID Connect SSO: `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, optional `OIDC_ALLOWED_DOMAINS`, `OIDC_NAME`. Redirect URI: `<AUTH_URL>/api/auth/oidc/callback`.
+- **Refund approval:** refunds above the limit in Settings > Policies need a second person.
+- **Reports and exports:** weekly owner report by email; Tally XML, Zoho/GST CSV and payments CSV from Invoices.
+- **Also:** per-location branding on invoices and emails, printable visitor badges, member perks marketplace, occupancy forecast on Analytics.
+
 ## Not built yet
-Companies/Services/etc. are in; still missing: WhatsApp/SMS messages, PDF invoice attachments (invoices are emailed as HTML and can be printed to PDF), refund webhooks from Razorpay,
-seat-level floor plan drawing, mobile push notifications (the bell polls once a minute), per-location staff restrictions, and multi-organisation sign-up.
+PDF invoice attachments (invoices are emailed as HTML and can be printed to PDF), seat-level floor plan drawing, per-location staff restrictions, and multi-organisation sign-up.

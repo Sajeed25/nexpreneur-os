@@ -10,7 +10,8 @@ import { magicLinkEmail } from "@/lib/emails";
 // Loaded lazily (dynamic import) by the auth actions so the DB driver and hashing
 // libraries are never evaluated just to render the login/register pages.
 
-type U = { uid: string; org: string; name: string; email: string; role: Role };
+/** `totp` is true when this person has two-factor on, so signing in isn't finished until they enter a code. */
+type U = { uid: string; org: string; name: string; email: string; role: Role; totp?: boolean };
 
 let dummy: string | undefined;
 /** Compared when the user doesn't exist so response timing doesn't reveal which emails have accounts. */
@@ -24,7 +25,7 @@ export async function verifyLogin(email: string, password: string): Promise<U | 
   if (!u || !ok) return null;
   await d.update(schema.users).set({ lastLoginAt: sql`CURRENT_TIMESTAMP` }).where(eq(schema.users.id, u.id));
   await d.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.login", entity: "user", entityId: u.id });
-  return { uid: u.id, org: u.organizationId, name: u.name, email: u.email, role: u.role };
+  return { uid: u.id, org: u.organizationId, name: u.name, email: u.email, role: u.role, totp: !!u.totpEnabledAt };
 }
 
 /** The very first account becomes the owner and creates the organization; later sign-ups join it as members. */
@@ -110,8 +111,18 @@ export async function consumeMagicLink(token: string): Promise<U | null> {
     await tx.update(schema.loginTokens).set({ usedAt: new Date() }).where(eq(schema.loginTokens.id, r.id));
     await tx.update(schema.users).set({ lastLoginAt: sql`CURRENT_TIMESTAMP` }).where(eq(schema.users.id, u.id));
     await tx.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.magic_login", entity: "user", entityId: u.id });
-    return { uid: u.id, org: u.organizationId, name: u.name, email: u.email, role: u.role };
+    return { uid: u.id, org: u.organizationId, name: u.name, email: u.email, role: u.role, totp: !!u.totpEnabledAt };
   });
+}
+
+/** Single sign-on: only an existing, active account with that email. Nobody is created from the provider's say-so. */
+export async function findSsoUser(email: string): Promise<U | null> {
+  const d = db();
+  const [u] = await d.select().from(schema.users).where(and(eq(schema.users.email, email.toLowerCase()), isNull(schema.users.deletedAt))).limit(1);
+  if (!u) return null;
+  await d.update(schema.users).set({ lastLoginAt: sql`CURRENT_TIMESTAMP` }).where(eq(schema.users.id, u.id));
+  await d.insert(schema.auditLogs).values({ organizationId: u.organizationId, actorId: u.id, action: "auth.sso_login", entity: "user", entityId: u.id });
+  return { uid: u.id, org: u.organizationId, name: u.name, email: u.email, role: u.role };
 }
 
 /** Google sign-in: an existing account with the same verified email, or a new member account. */
